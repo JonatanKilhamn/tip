@@ -925,7 +925,7 @@ namespace Tip {
     bool StepInstance::prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next)
     {
         DEB(printf("[StepInstance::prove] next = "));
-        DEB( (&*next != NULL) ? printClause(tip, *next) : (void)printf("<null>") );
+        DEB( (next != NULL) ? printClause(tip, *next) : (void)printf("<null>") );
         DEB(printf("\n"));
 
         assert(next == NULL || &c == (Clause*)&*next);
