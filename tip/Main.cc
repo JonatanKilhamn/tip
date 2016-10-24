@@ -119,8 +119,8 @@ int main(int argc, char** argv)
     if (xsafe)
         extractSafety(tc);
 
-    if (td_depth != -1)
-        temporalDecompositionSmart(tc, td_depth, tdmax);
+    //if (td_depth != -1)
+    //    temporalDecompositionSmart(tc, td_depth, tdmax);
 
     if (fce)
         fairnessConstraintExtraction(tc, fce, fce_prop);

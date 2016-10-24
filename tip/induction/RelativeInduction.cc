@@ -1356,7 +1356,7 @@ namespace Tip {
         //     bmc->decideCycle();
         //     bmc->printStats ();
         // }
-
+        /*
         for (int i = 0; !bmc->done() && i < opt_pdepth; i++){
             bmc->unrollCycle();
             bmc->decideCycle();
@@ -1380,6 +1380,7 @@ namespace Tip {
                 bmc->decideCycle();
                 bmc->printStats ();
             }
+        */
 
         // TODO: implement a clear/reset method in bmc-class instead.
         double bmc_time = 0;
