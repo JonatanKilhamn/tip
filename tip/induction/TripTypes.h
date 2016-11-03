@@ -265,6 +265,8 @@ namespace Tip {
     inline void printClause(const TipCirc& tip, const Clause& c)
     {
         printf("{ ");
+        printf("inputs: ");
+        
         for (unsigned i = 0; i < c.size(); i++){
             if (i > 0) printf(", ");
             if (sign(c[i])) printf("~");
@@ -280,6 +282,33 @@ namespace Tip {
             printf(" }@inv");
         else
             printf(" }@%d", c.cycle);
+    }
+    
+    inline void printClause(const TipCirc& tip, const ScheduledClause& sc)
+    {
+        printf("{ ");
+        printf("inputs: ");
+        for (unsigned i = 0; i < sc.inputs.size(); i++) {
+            if (i > 0) printf(", ");
+            printf("%d", toInt(sc.inputs[i]));            
+        }
+        printf("\n  clause:");
+        for (unsigned i = 0; i < sc.size(); i++){
+            if (i > 0) printf(", ");
+            if (sign(sc[i])) printf("~");
+            if (tip.flps.isFlop(gate(sc[i])))
+                printf("f");
+            else if (type(sc[i]) == gtype_Inp)
+                printf("i");
+            else
+                assert(false);
+            printf("%d", tip.main.number(gate(sc[i])));
+        }
+        if (sc.cycle == cycle_Undef)
+            printf(" }@inv");
+        else
+            printf(" }@%d", sc.cycle);
+
     }
 
 

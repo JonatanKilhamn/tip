@@ -208,6 +208,7 @@ namespace Tip {
 
             // DEBUG:
             void             printClause (const Clause& c);
+            void             printClause (const ScheduledClause& sc);
 
             
         public:
@@ -1374,6 +1375,12 @@ namespace Tip {
         {
             Tip::printClause(tip, c);
         }
+        
+        void Trip::printClause(const ScheduledClause& sc)
+        {
+            Tip::printClause(tip, sc);
+        }       
+        
     };
 
 
