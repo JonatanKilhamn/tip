@@ -63,7 +63,7 @@ namespace Tip {
         IntOption  opt_max_min_tries("RIP", "rip-min-tries","Max number of tries in model minimization", 32);
         IntOption  opt_live_enc     ("RIP", "rip-live-enc", "Incremental liveness encoding", 0, IntRange(0,2));
         IntOption  opt_cnf_level    ("RIP", "rip-cnf", "Effort level for CNF simplification (0-2)", 1, IntRange(0,2));
-        IntOption  opt_pdepth       ("RIP", "rip-pdepth", "Depth of property instance.", 4, IntRange(0,INT32_MAX));
+        IntOption  opt_pdepth       ("RIP", "rip-pdepth", "Depth of property instance.", 0, IntRange(0,INT32_MAX));
         BoolOption opt_use_ind      ("RIP", "rip-use-ind", "Use property in induction hypothesis", true);
         BoolOption opt_use_uniq     ("RIP", "rip-use-uniq", "Use unique state induction", false);
         DoubleOption opt_push_limit ("RIP", "rip-push-lim", "Fraction of total clauses which triggers a new push iteration", 0, DoubleRange(0,true, HUGE_VAL, true));
@@ -88,6 +88,9 @@ namespace Tip {
                                  clause_queue;
             SMap<vec<Clause*> >  bwd_occurs;
             SMap<vec<Clause*> >  fwd_occurs;
+            
+            vec<SharedRef<ScheduledClause> >
+                                 blockedClauses;
 
             // Liveness to safety mapping:
             vec<EventCounter>    event_cnts;
@@ -161,6 +164,10 @@ namespace Tip {
             // Add a proved clause 'c'. Returns true if this causes an invariant to be found, and false
             // otherwise.
             bool             addClause    (const Clause& c);
+            
+            // 'Blocks' a clause 'sc'. This adds the clause to the proven ones as if it
+            // had been proven
+            void blockClause(SharedRef<ScheduledClause>& pred);
 
             // When some set of invariants have been found, extract and add the clauses to
             // 'F_inv'. Also perform backward subsumption to remove redundant clauses.
@@ -376,6 +383,11 @@ namespace Tip {
 
         bool Trip::proveAndGeneralize(SharedRef<ScheduledClause> c, Clause& yes, SharedRef<ScheduledClause>& no)
         {
+            
+            DEB(printf("[proveAndGeneralize] c = "));
+            DEB(printClause(*c));
+            DEB(printf("\n"));
+
             Clause yes_init, yes_step;
             if (c->cycle == 0){
                 Clause empty;
@@ -720,10 +732,11 @@ namespace Tip {
             DEB(printf("[addClause] c = "));
             DEB(printClause(c));
             DEB(printf("\n"));
-
+            //DEB(printf("Is null: %d\n", &c_ == NULL));
             assert(!fwdSubsumed(&c_));
             n_total++;
             cls_added++;
+            //DEB(printf("break1\n"));
 
             if (order_heur == 2){
                 // Decay flop activities:
@@ -749,7 +762,7 @@ namespace Tip {
                 bwd_occurs.growTo(c[i]);
                 bwd_occurs[c[i]].push(&c);
             }
-
+            //DEB(printf("break5\n"));
             // Attach to forward subsumption index:
             int min_index = 0;
             int min_size  = fwd_occurs.has(c[0]) ? fwd_occurs[c[0]].size() : 0;
@@ -763,7 +776,7 @@ namespace Tip {
             }
             fwd_occurs.growTo(c[min_index]);
             fwd_occurs[c[min_index]].push(&c);
-
+            //DEB(printf("break6\n"));
             return bwdSubsume(&c);
         }
 
@@ -1130,17 +1143,24 @@ namespace Tip {
                 }else if (sc->cycle == 0)
                     return false;
                 else{
+                    
+                    // Candidate place for simply blocking bad predecessors, instead of
+                    // adding them to the queue
+                    
                     if (pred->cycle > 0){
                         Clause empty; empty.cycle = cycle_Undef;
                         Clause slask;
                         assert(init.prove(*pred, empty, slask));
                     }
-
+                    
+                    /*
                     cands_added++;
                     cands_total_size    += pred->size();
                     cands_total_removed += tip.flps.size() - pred->size();
-                    
-                    enqueueClause(pred);
+                    */
+                    blockClause(pred);
+
+                    //enqueueClause(pred);
                     enqueueClause(sc);
                 }
             }
@@ -1152,6 +1172,12 @@ namespace Tip {
             return true;
         }
 
+        void Trip::blockClause(SharedRef<ScheduledClause>& sc){
+            (*sc).cycle = cycle_Undef;
+            DEB(printf("[blockClause]\n"));
+            addClause(*sc);
+            blockedClauses.push(sc);
+        }
 
         bool Trip::decideCycle()
         {
@@ -1333,6 +1359,14 @@ namespace Tip {
                    init.props(), step.props(), prop.props());
             printf("  CPU-Time:        %12.1f s %12.1f s %12.1f s\n",
                    init.time(), step.time(), prop.time());
+            
+            printf("\n");
+            printf("\n");
+            printf("Blocked Clauses:\n");
+            for (int i = 0; i < blockedClauses.size(); i++) {
+                printClause(*blockedClauses[i]);
+                printf("\n");
+            }
         }
 
 
