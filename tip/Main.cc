@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     IntOption    live ("MAIN", "live", "Which liveness property to work on.", -1, IntRange(-1,INT32_MAX));
     BoolOption   embed("MAIN", "embed", "Embed all constraints in the properties.", false);
     IntOption    kind ("MAIN", "kind", "What kind of algorithm to run.", 0, IntRange(0,INT32_MAX));
-    IntOption    verb ("MAIN", "verb", "Verbosity level.", 1, IntRange(0,10));
+    IntOption    verb ("MAIN", "verb", "Verbosity level.", 5, IntRange(0,10));
     IntOption    sce  ("MAIN", "sce",  "Use semantic constraint extraction (0=off, 1=minimize-algorithm, 2=basic-algorithm).", 0, IntRange(0,2));
     IntOption    fce  ("MAIN", "fce",  "Fairness constraint extraction level (0=off).", 0);
     BoolOption   fce_prop("MAIN", "fce-prop", "Use liveness properties in fairness constraint extraction.", true);

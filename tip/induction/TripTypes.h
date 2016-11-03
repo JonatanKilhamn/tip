@@ -264,9 +264,7 @@ namespace Tip {
 
     inline void printClause(const TipCirc& tip, const Clause& c)
     {
-        printf("{ ");
-        printf("inputs: ");
-        
+        printf("{ ");        
         for (unsigned i = 0; i < c.size(); i++){
             if (i > 0) printf(", ");
             if (sign(c[i])) printf("~");
@@ -286,7 +284,7 @@ namespace Tip {
     
     inline void printClause(const TipCirc& tip, const ScheduledClause& sc)
     {
-        printf("{ ");
+        printf("\n{ ");
         printf("inputs: ");
         for (unsigned i = 0; i < sc.inputs.size(); i++) {
             if (i > 0) printf(", ");

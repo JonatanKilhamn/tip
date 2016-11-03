@@ -398,6 +398,7 @@ namespace Tip {
                 generalizeInit(yes_init);
                 yes_step = yes_init;
             }else{
+                DEB(printf("first step.prove\n"));
                 if (!step.prove(*c, yes_step, no, c))
                     return false;
 
@@ -407,12 +408,14 @@ namespace Tip {
                 assert(subsumes(yes_step, yes_init));
                 yes_step = yes_init;
 
-                if (tip.verbosity >= 4) printf("[generalize] %d.%d", c->size(), yes_step.size());
+                if (tip.verbosity >= 4) printf("[generalize] %d.%d\n", c->size(), yes_step.size());
 
 #ifdef GENERALIZE_THEN_PUSH
                 generalize(yes_step);
 #endif
             }
+            
+            DEB(printf("After generalisation\n"));
 
             // Check if clause is already inductive:
             if (yes_step.cycle != cycle_Undef){
@@ -1116,6 +1119,7 @@ namespace Tip {
 
                 assert(sc->cycle <= safe_depth+1);
                 if (proveAndGeneralize(sc, minimized, pred)){
+                    DEB(printf("[proveRec] returned from proveAndGeneralize\n"));
                     if ((iters++ % 10) == 0) printStats(sc->cycle, false);
 
                     cls_total_size    += minimized.size();
@@ -1136,6 +1140,7 @@ namespace Tip {
                     }
                     
                     if (addClause(minimized)){
+                        DEB(printf("[proveRec] extractInvariant:\n"));
                         extractInvariant();
                     }else if (fwd_inst && minimized.cycle != cycle_Undef && minimized.cycle+1 <= safe_depth+1){
                         sc->cycle = minimized.cycle+1;
