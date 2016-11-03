@@ -957,6 +957,10 @@ namespace Tip {
             Lit l = cl->clausify(uc.unroll(x, 0));
             assumes.push(~l);
         }
+        
+        Gate firstFlopGate = tip.getFirstFlop();
+        // proof of concept
+        
         // Assume constraints:
         assumes.push(act_cnstrs);
 

@@ -248,6 +248,8 @@ public:
 
     // Settings:
     int           verbosity;
+    
+    Gate getFirstFlop () const { return flps[0]; };
 
  private:
 
