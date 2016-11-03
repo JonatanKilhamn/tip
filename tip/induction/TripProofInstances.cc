@@ -958,7 +958,11 @@ namespace Tip {
             assumes.push(~l);
         }
         
+        // Assume uncontrollability (incoming)
         Gate firstFlopGate = tip.getFirstFlop();
+        Sig x = tip.flps.next(firstFlopGate);
+        Lit l = cl->clausify(uc.unroll(x,0));
+        assumes.push(~l);
         // proof of concept
         
         // Assume constraints:
