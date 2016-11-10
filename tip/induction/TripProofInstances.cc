@@ -399,6 +399,7 @@ namespace Tip {
             assert(l != lit_Undef);
             assumes.push(~l);
         }
+        
 
         if (next == NULL)
             solver->extend_model = false;
@@ -922,7 +923,8 @@ namespace Tip {
     }
 
 
-    bool StepInstance::prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next)
+    bool StepInstance::prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next,
+            int uncontrollable)
     {
         DEB(printf("[StepInstance::prove] c = "));
         DEB(printClause(tip, c));
@@ -957,17 +959,23 @@ namespace Tip {
             Lit l = cl->clausify(uc.unroll(x, 0));
             assumes.push(~l);
         }
+
         
         // Assume uncontrollability (incoming)
+        //if (uncontrollable < 2) {
         Gate firstFlopGate = tip.getFirstFlop();
         Sig x = tip.flps.next(firstFlopGate);
         Lit l = cl->clausify(uc.unroll(x,0));
+        //if (uncontrollable == 1)
+        //    assumes.push(l);
+        //else
         assumes.push(~l);
+        //}
         // proof of concept
-        
+
         // Assume constraints:
         assumes.push(act_cnstrs);
-
+        
         // Try to satisfy clause 'c' (incoming):
         vec<Lit> cls;
         for (unsigned i = 0; i < c.size(); i++){
@@ -1013,8 +1021,10 @@ namespace Tip {
                 flops.clear();
 #if 1
                 for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
-                    if (uc.lookup(*flit, 0) != sig_Undef)
+                    if (uc.lookup(*flit, 0) != sig_Undef) {
+                        // This is an interesting place – what happens here?
                         flops.push(mkSig(*flit));
+                    }
 
                 //sort(flops, SigActLt(flop_act));
                 sort(flops, SigActGt(flop_act));
@@ -1080,14 +1090,15 @@ namespace Tip {
         }
         cpu_time += cpuTime() - time_before;
 
+        DEB(printf("[StepInstance::prove] result = %d\n",result));
         return result;
     }
 
 
-    bool StepInstance::prove(const Clause& c, Clause& yes)
+    bool StepInstance::prove(const Clause& c, Clause& yes, int uncontrollable)
     {
         SharedRef<ScheduledClause> dummy;
-        return prove(c, yes, dummy);
+        return prove(c, yes, dummy, NULL, uncontrollable);
     }
 
     StepInstance::StepInstance(const TipCirc& t, const vec<vec<Clause*> >& F_, const vec<Clause*>& F_inv_, const vec<EventCounter>& event_cnts_, GMap<float>& flop_act_,

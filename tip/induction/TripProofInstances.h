@@ -240,8 +240,9 @@ namespace Tip {
                      int cnf_level_, uint32_t max_min_tries_);
         ~StepInstance();
         
-        bool prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL);
-        bool prove(const Clause& c, Clause& yes);
+        // uncontrollable: 0 = false, 1 = true; 2 = undef
+        bool prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL, int uncontrollable = 2);
+        bool prove(const Clause& c, Clause& yes, int uncontrollable = 2);
 
         uint64_t props();
         uint64_t solves();

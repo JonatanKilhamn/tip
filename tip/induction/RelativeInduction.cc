@@ -399,7 +399,7 @@ namespace Tip {
                 yes_step = yes_init;
             }else{
                 DEB(printf("first step.prove\n"));
-                if (!step.prove(*c, yes_step, no, c))
+                if (!step.prove(*c, yes_step, no, c, 1))
                     return false;
 
                 //check(proveInit(*c, yes_init));
@@ -1164,6 +1164,9 @@ namespace Tip {
                     cands_total_size    += pred->size();
                     cands_total_removed += tip.flps.size() - pred->size();
                     */
+                    DEB(printf("[proveRec] Blocking pred. clause:\n"));
+                    DEB(printClause(*pred));
+                    DEB(printf("\n"));
                     blockClause(pred);
 
                     //enqueueClause(pred);
