@@ -132,12 +132,13 @@ namespace Tip {
             // PROVE:   let k = c.cycle: F_inv ^ F[k-1] ^ c ^ Trans => c'
             // RETURNS: True and a minimal stronger clause d (subset of c) that holds in a maximal cycle >= k,
             //       or False and a new clause predecessor to be proved in cycle k-1.
-            bool             proveAndGeneralize(SharedRef<ScheduledClause> c, Clause& yes, SharedRef<ScheduledClause>& no);
+            bool             proveAndGeneralize(SharedRef<ScheduledClause> c, Clause& yes, SharedRef<ScheduledClause>& no,
+                                                int uncontr);
 
             // PROVE:   let k = c.cycle: F_inv ^ F[k-1] ^ c ^ Trans => c'
             // RETURNS: True and a stronger clause d (subset of c) that holds in some cycle >= k,
             //       or False if c does not hold in cycle k.
-            bool             proveStep(const Clause& c, Clause& yes);
+            bool             proveStep(const Clause& c, Clause& yes, int uncontr);
 
             void             scheduleGeneralizeOrder(const Clause& c, vec<Sig>& try_remove);
 
@@ -382,7 +383,8 @@ namespace Tip {
         }
 
 
-        bool Trip::proveAndGeneralize(SharedRef<ScheduledClause> c, Clause& yes, SharedRef<ScheduledClause>& no)
+        bool Trip::proveAndGeneralize(SharedRef<ScheduledClause> c, Clause& yes, SharedRef<ScheduledClause>& no,
+                int uncontr)
         {
             
             DEB(printf("[proveAndGeneralize] c = "));
@@ -399,7 +401,7 @@ namespace Tip {
                 yes_step = yes_init;
             }else{
                 DEB(printf("first step.prove\n"));
-                if (!step.prove(*c, yes_step, no, c, 1))
+                if (!step.prove(*c, yes_step, no, c, uncontr))
                     return false;
 
                 //check(proveInit(*c, yes_init));
@@ -451,12 +453,12 @@ namespace Tip {
         }
 
 
-        bool Trip::proveStep(const Clause& c, Clause& yes)
+        bool Trip::proveStep(const Clause& c, Clause& yes, int uncontr)
         {
             // FIXME: code duplication ...
             Clause yes_init, yes_step;
 
-            if (!step.prove(c, yes_step))
+            if (!step.prove(c, yes_step, uncontr))
                 return false;
 
             if (tip.verbosity >= 5 && c.cycle < yes_step.cycle)
@@ -1055,7 +1057,7 @@ namespace Tip {
                         c = *F[k][i];
                         c.cycle++;
 
-                        if (proveStep(c, d)){
+                        if (proveStep(c, d, 2)){
                             // NOTE: the clause F[c][i] will be removed by backward subsumption.
                             if (!c.isActive()){
                                 cls_revived++;
@@ -1118,7 +1120,9 @@ namespace Tip {
                 static unsigned iters = 0;
 
                 assert(sc->cycle <= safe_depth+1);
-                if (proveAndGeneralize(sc, minimized, pred)){
+                int uncontr = 2; // TODO: run this with uncontr 0 or 1 depending
+                                 // on circumstances, to get the correct behaviour
+                if (proveAndGeneralize(sc, minimized, pred, uncontr)){
                     DEB(printf("[proveRec] returned from proveAndGeneralize\n"));
                     if ((iters++ % 10) == 0) printStats(sc->cycle, false);
 

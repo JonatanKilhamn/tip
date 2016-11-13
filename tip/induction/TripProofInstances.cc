@@ -962,15 +962,15 @@ namespace Tip {
 
         
         // Assume uncontrollability (incoming)
-        //if (uncontrollable < 2) {
+        if (uncontrollable < 2) {
         Gate firstFlopGate = tip.getFirstFlop();
         Sig x = tip.flps.next(firstFlopGate);
         Lit l = cl->clausify(uc.unroll(x,0));
-        //if (uncontrollable == 1)
-        //    assumes.push(l);
-        //else
-        assumes.push(~l);
-        //}
+        if (uncontrollable == 1)
+            assumes.push(l);
+        else
+            assumes.push(~l);
+        }
         // proof of concept
 
         // Assume constraints:
