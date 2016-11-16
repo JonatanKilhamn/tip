@@ -188,7 +188,7 @@ namespace Tip {
                      int cnf_level_, uint32_t max_min_tries_, int depth_, bool use_ind_, bool use_uniq_);
         ~PropInstance();
         
-        lbool prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle);
+        lbool prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle, int uncontr);
 
         uint64_t props();
         uint64_t solves();

@@ -152,7 +152,7 @@ namespace Tip {
             // RETURNS: l_True if the property is implied by the invariants alone,
             //       or l_False and a new clause predecessor to be proved in cycle k,
             //       or l_Undef when the propery 'p' holds in cycle k+1.
-            lbool            proveProp(Sig p, SharedRef<ScheduledClause>& no);
+            lbool            proveProp(Sig p, SharedRef<ScheduledClause>& no, int uncontr);
 
             // Prove scheduled clause "recursively". Returns true if the clause was proved, and
             // false if it was falsified.
@@ -394,7 +394,7 @@ namespace Tip {
             Clause yes_init, yes_step;
             if (c->cycle == 0){
                 Clause empty;
-                // printf("[proveAndGeneralize] cycle-0:\n");
+                printf("[proveAndGeneralize] cycle-0:\n");
                 if (!init.prove(*c, empty, yes_init, no, c))
                     return false;
                 generalizeInit(yes_init);
@@ -417,7 +417,7 @@ namespace Tip {
 #endif
             }
             
-            DEB(printf("After generalisation\n"));
+            DEB(printf("[proveAndGeneralise] After generalisation\n"));
 
             // Check if clause is already inductive:
             if (yes_step.cycle != cycle_Undef){
@@ -474,7 +474,9 @@ namespace Tip {
         }
 
 
-        lbool Trip::proveProp(Sig p, SharedRef<ScheduledClause>& no){ return prop.prove(p, no, safe_depth+1); }
+        lbool Trip::proveProp(Sig p, SharedRef<ScheduledClause>& no, int uncontr){
+            return prop.prove(p, no, safe_depth+1, uncontr);
+        }
 
 
         bool Trip::baseCase()
@@ -1205,7 +1207,8 @@ namespace Tip {
                     lbool prop_res = l_False;
                     do {
                         // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
-                        prop_res = proveProp(tip.safe_props[p].sig, pred);
+                        int uncontr = 2; // TODO: use the uncontr flag actively                        
+                        prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False){
                             cands_added++;
                             cands_total_size    += pred->size();
@@ -1237,8 +1240,9 @@ namespace Tip {
 
                     lbool prop_res = l_False;
                     do {
+                        int uncontr=2; // We don't care about liveness for now
                         // printf("[decideCycle] checking liveness property %d in cycle %d\n", p, size());
-                        prop_res = proveProp(~event_cnts[p].q, pred);
+                        prop_res = proveProp(~event_cnts[p].q, pred, uncontr);
 
                         if (prop_res == l_False){
                             cands_added++;
@@ -1278,6 +1282,7 @@ namespace Tip {
                 // At this point we know that all remaining properties are implied in cycle k+1. Expand
                 // a new frame and push clauses forward as much as possible:
                 safe_depth++;
+                printf("[decideCycle] entering pushClauses\n");
                 pushClauses();
                 prop.clearClauses(safe_depth+1);
                 result = false;
@@ -1444,6 +1449,8 @@ namespace Tip {
         }
 
         while (!trip.decideCycle()){
+            printf("[relativeInduction] decided one cycle\n");
+
             trip.printStats();
 
             // TODO: work on better heuristics here.

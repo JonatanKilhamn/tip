@@ -649,13 +649,14 @@ namespace Tip {
     }
 
 
-    lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle)
+    lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle,
+            int uncontr)
     {
         double   time_before = cpuTime();
         Lit      l = cl->clausify(uc.unroll(p, depth()));
         vec<Lit> assumps;
         lbool    result;
-
+        
         if (use_ind)
             for (unsigned i = 0; i < depth(); i++){
                 Sig x = uc.unroll(p, i);
@@ -663,8 +664,23 @@ namespace Tip {
                 assumps.push(l);
             }
         assumps.push(~l);
+        
+        // Assume uncontrollability (incoming?)
+        if (uncontr < 2) {
+        Gate firstFlopGate = tip.getFirstFlop();
+        Sig x = tip.flps.next(firstFlopGate);
+        Lit l = cl->clausify(uc.unroll(x,0));
+        if (uncontr == 1)
+            assumps.push(l);
+        else
+            assumps.push(~l);
+        }
+
+        
         assumps.push(act_cnstrs);
         assumps.push(act_cycle);
+        // don't push anything after this, since we do a pop() later on and
+        // want that to pop act_cycle
 
         //uint32_t conflicts_before = solver->conflicts;
         bool sat;
@@ -961,7 +977,7 @@ namespace Tip {
         }
 
         
-        // Assume uncontrollability (incoming)
+        // Assume uncontrollability (incoming?)
         if (uncontrollable < 2) {
         Gate firstFlopGate = tip.getFirstFlop();
         Sig x = tip.flps.next(firstFlopGate);
