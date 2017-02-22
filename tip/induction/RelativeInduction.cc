@@ -421,20 +421,25 @@ namespace Tip {
 
             // Check if clause is already inductive:
             if (yes_step.cycle != cycle_Undef){
+                DEB(printf("[proveAndGeneralise] Checking for inductive\n"));
                 Clause inf = yes_step;
                 inf.cycle = cycle_Undef;
-                if (step.prove(inf, yes_step)){
+                int uncontrollable=2;
+                if (step.prove(inf, yes_step, uncontrollable)){
                     check(init.prove(inf, yes_step, yes_init));
                     assert(subsumes(yes_step, yes_init));
                     yes_step = yes_init;
+                    DEB(printf("[proveAndGeneralise] It was inductive\n"));                    
                 }
             }
 
             // Push clause forwards as much as possible:
             while (yes_step.cycle < size()){
+                DEB(printf("[proveAndGeneralise] Pushing forwards\n"));
                 Clause d = yes_step;
                 d.cycle++;
-                if (!step.prove(d, yes_step))
+                int uncontrollable=2;
+                if (!step.prove(d, yes_step, uncontrollable))
                     break;
                 check(init.prove(d, yes_step, yes_init));
                 assert(subsumes(yes_step, yes_init));
@@ -462,7 +467,7 @@ namespace Tip {
                 return false;
 
             if (tip.verbosity >= 5 && c.cycle < yes_step.cycle)
-                printf("[proveStep] clause was proved in the future: %d -> %d\n",
+                printf("[proveStep] clause was proved in the future: %u -> %d\n",
                        c.cycle, yes_step.cycle);
 
             //check(proveInit(c, yes_init));
@@ -1101,9 +1106,6 @@ namespace Tip {
                 if (sc == NULL)
                     break;
 
-                DEB(printf("[proveRec] sc = "));
-                DEB(printClause(*sc));
-                DEB(printf("\n"));
 
                 unsigned sub_cycle;
                 if (fwdSubsumed(&(const Clause&)*sc, sub_cycle)){
@@ -1124,6 +1126,9 @@ namespace Tip {
                 assert(sc->cycle <= safe_depth+1);
                 int uncontr = 2; // TODO: run this with uncontr 0 or 1 depending
                                  // on circumstances, to get the correct behaviour
+                DEB(printf("[proveRec] sc = "));
+                DEB(printClause(*sc));
+                DEB(printf("\n"));
                 if (proveAndGeneralize(sc, minimized, pred, uncontr)){
                     DEB(printf("[proveRec] returned from proveAndGeneralize\n"));
                     if ((iters++ % 10) == 0) printStats(sc->cycle, false);
@@ -1205,9 +1210,18 @@ namespace Tip {
             for (SafeProp p = 0; p < tip.safe_props.size(); p++)
                 if (tip.safe_props[p].stat == pstat_Unknown){
                     lbool prop_res = l_False;
+                    /*do {
+                        // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
+                        int uncontr = 0; // TODO: use the uncontr flag actively                        
+                        prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
+                        if (prop_res == l_False) {
+                            blockClause(pred);
+                        }
+                    } while (prop_res == l_False);
+                    prop_res = l_False;*/
                     do {
                         // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
-                        int uncontr = 2; // TODO: use the uncontr flag actively                        
+                        int uncontr = 0;
                         prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False){
                             cands_added++;
@@ -1240,7 +1254,7 @@ namespace Tip {
 
                     lbool prop_res = l_False;
                     do {
-                        int uncontr=2; // We don't care about liveness for now
+                        int uncontr=1; // We don't care about liveness for now
                         // printf("[decideCycle] checking liveness property %d in cycle %d\n", p, size());
                         prop_res = proveProp(~event_cnts[p].q, pred, uncontr);
 

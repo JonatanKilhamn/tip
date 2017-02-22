@@ -21,6 +21,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mcl/Clausify.h"
 #include "tip/unroll/Unroll.h"
 #include "tip/induction/TripProofInstances.h"
+#include <iostream>
+using namespace std;
 
 //#define VERBOSE_DEBUG
 #define CNF_ASYMM_LIMIT 16000 // FIXME: do something nicer than this limit.
@@ -232,13 +234,16 @@ namespace Tip {
                 if (tip.main.number(*iit) != UINT32_MAX){
                     Gate inp = *iit;
                     Sig  x   = uc.lookup(inp, cycle);
+                    DEB(printf("Tracing input %u: ", tip.main.number(inp)));
                     frames.last().growTo(tip.main.number(inp)+1, l_Undef);
                     if (x != sig_Undef){
-                        if (submodel.has(x))
+                        if (submodel.has(x)) {
                             frames.last()[tip.main.number(inp)] = l_True;
-                        else if (submodel.has(~x))
+                            DEB(printf("l_true\n"));
+                        } else if (submodel.has(~x)) {
                             frames.last()[tip.main.number(inp)] = l_False;
-                        else
+                            DEB(printf("l_false\n"));
+                        } else
                             frames.last()[tip.main.number(inp)] = l_Undef;
                     }else
                         frames.last()[tip.main.number(inp)] = l_Undef;
@@ -270,14 +275,30 @@ namespace Tip {
         void getClause(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, unsigned cycle, vec<Sig>& xs)
         {
             xs.clear();
-            for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
+            int counter = 0;
+            for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
+                DEB(printf("Flop %d@%u: gate %u; lookup %u alt. ", counter, cycle, (*flit).x, uc.lookup(*flit, 0).x));
+                DEB(tip.printSig(uc.lookup(*flit, cycle)));
+                DEB(printf("; mkSig %u alt. ", mkSig(*flit)));
+                DEB(tip.printSig(mkSig(*flit)));
+                DEB(printf("; .next %u alt. ", tip.flps.next(*flit)));
+                DEB(tip.printSig(tip.flps.next(*flit)));
+                DEB(printf("\n"));
                 if (uc.lookup(*flit, cycle) != sig_Undef){
                     Sig q = uc.lookup(*flit, cycle);
-                    if (submodel.has(q))
+                    if (submodel.has(q)) {
                         xs.push(~mkSig(*flit));
-                    else if (submodel.has(~q))
+                        printf("Value: True\n");
+                    } else if (submodel.has(~q)) {
                         xs.push(mkSig(*flit));
+                        printf("Value: False\n");
+                    } else {
+                        printf("Value: undecided\n");
+                    }
                 }
+                counter++;
+
+            }
         }
 
 
@@ -289,6 +310,7 @@ namespace Tip {
                 Gate g = gate(xs[i]);
                 assert(cl.modelValue(g) != l_Undef);
                 set.insert(mkSig(g, cl.modelValue(g) == l_False));
+                DEB(printf("Flop %i: %u\n",i,set[i].x));
             }
         }
 
@@ -653,75 +675,58 @@ namespace Tip {
             int uncontr)
     {
         double   time_before = cpuTime();
-        Lit      l = cl->clausify(uc.unroll(p, depth()));
         vec<Lit> assumps;
         lbool    result;
         
-        if (use_ind)
-            for (unsigned i = 0; i < depth(); i++){
-                Sig x = uc.unroll(p, i);
-                Lit l = cl->clausify(x);
+        Sig uncSig;
+        // Assume uncontrollability (outgoing)
+        if (uncontr < 2) {
+            Gate firstFlopGate = tip.getFirstFlop();
+            uncSig = tip.flps.next(firstFlopGate);
+            Lit l = cl->clausify(uc.unroll(uncSig, 0));
+
+            l = cl->clausify(uc.unroll(uncSig, depth()));
+            
+            DEB(printf("uncSig when pushing assumption: %d alt. ", uncSig.x));
+            DEB(tip.printSig(uncSig));
+            DEB(printf("\n"));
+           
+            if (uncontr == 1) {
+                printf("Pushing uncontr=1\n");
                 assumps.push(l);
             }
+            else {
+                printf("Pushing uncontr=0\n");
+                assumps.push(~l);
+            }
+        }        
+        
+        Lit      l = cl->clausify(uc.unroll(p, depth()));
+        
+        /*DEB(printf("Safety at depth: %d; ", l.x));
+        tip.printSig(p);
+        DEB(printf("\n"));*/
+
         assumps.push(~l);
         
-        // Assume uncontrollability (incoming?)
-        if (uncontr < 2) {
-        Gate firstFlopGate = tip.getFirstFlop();
-        Sig x = tip.flps.next(firstFlopGate);
-        Lit l = cl->clausify(uc.unroll(x,0));
-        if (uncontr == 1)
-            assumps.push(l);
-        else
-            assumps.push(~l);
-        }
-
+        
         
         assumps.push(act_cnstrs);
         assumps.push(act_cycle);
+        /*for (int i = 0; i<assumps.size(); i++) {
+            Lit la = assumps[i];
+            DEB(printf("[Assumps] %d\n", la.x));
+        }*/
         // don't push anything after this, since we do a pop() later on and
         // want that to pop act_cycle
 
         //uint32_t conflicts_before = solver->conflicts;
         bool sat;
-        for (bool trace_ok = false; !trace_ok; ){
+        for (bool trace_ok = false; !trace_ok;) {
             sat = solver->solve(assumps);
-            if (sat && use_uniq){
-                // Check for equal states:
-                for (int i = depth(); i > 0; i--)
-                    for (int j = 0; j < i; j++){
-                        bool equal = true;
-                        for (int k = 0; equal && k < needed_flops[i].size(); k++){
-                            Sig f_i = uc.lookup(needed_flops[i][k], i);
-                            Sig f_j = uc.lookup(needed_flops[i][k], j);
-                            assert(f_i != sig_Undef);
-                            assert(f_j != sig_Undef);
-                            assert(cl->lookup(f_i) != lit_Undef);
-                            assert(cl->lookup(f_j) != lit_Undef);
-                            equal &= (cl->modelValue(f_i) == cl->modelValue(f_j));
-                        }
-
-                        if (equal){
-                            printf("[prove] equal states %d and %d!\n", j, i);
-
-                            vec<Lit> cls;
-                            for (int k = 0; equal && k < needed_flops[i].size(); k++){
-                                Lit l_i = cl->lookup(uc.lookup(needed_flops[i][k], i));
-                                Lit l_j = cl->lookup(uc.lookup(needed_flops[i][k], j));
-                                Lit q   = mkLit(solver->newVar());
-                                cls.push(q);
-
-                                solver->addClause(~act_cnstrs, ~q, ~l_i, ~l_j);
-                                solver->addClause(~act_cnstrs, ~q,  l_i,  l_j);
-                            }
-                            solver->addClause(cls);
-                            goto next;
-                        }
-                    }
-            }
-
             trace_ok = true;
-        next:;
+next:
+            ;
         }
 
         if (sat){
@@ -729,48 +734,127 @@ namespace Tip {
             // Found predecessor state to a bad state:
             flops.clear();
 #if 1
-                for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
-                    if (uc.lookup(*flit, 0) != sig_Undef)
-                        flops.push(mkSig(*flit));
-                sort(flops, SigActGt(flop_act));
-                //sort(flops, SigActLt(flop_act));
-                for (int i = 0; i < flops.size(); i++)
-                    flops[i] = uc.lookup(flops[i], 0);
+            int counter = 0;
+            for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
+                if (uc.lookup(*flit, 0) != sig_Undef) {
+                    flops.push(mkSig(*flit));
+                    DEB(printf("Def: %u\n", (*flit).x));
+                }
+                DEB(printf("Flop %d: gate %u; lookup %u alt. ", counter, (*flit).x, uc.lookup(*flit, 0).x));
+                DEB(tip.printSig(uc.lookup(*flit, 0)));
+                DEB(printf("; mkSig %u alt. ", mkSig(*flit)));
+                DEB(tip.printSig(mkSig(*flit)));
+                DEB(printf("; .next %u alt. ", tip.flps.next(*flit)));
+                DEB(tip.printSig(tip.flps.next(*flit)));
+                DEB(printf("\n"));
+                counter++;
+
+                uint32_t i = tip.main.number(gate(mkSig(*flit)));
+                printf("Modelvalue of %u.next: ",tip.flps.next(*flit).x);
+                if (cl->modelValue(uc.lookup(tip.flps.next(*flit), depth())) == l_True) {
+                    printf("True\n");
+                } else if (cl->modelValue(uc.lookup(tip.flps.next(*flit), depth())) == l_False) {
+                    printf("False\n");
+                } else {
+                    printf("undecided\n");
+                }
+            }
+            sort(flops, SigActGt(flop_act));
+            //sort(flops, SigActLt(flop_act));
+            DEB(printf("After sorting\n"));
+            for (int i = 0; i < flops.size(); i++) {
+                DEB(printf("Flop %d: flops[i] %u; lookup %u\n", i, flops[i].x, uc.lookup(flops[i], 0)));
+                DEB(printf("gate(flops[i]) %u\n", gate(flops[i]).x));
+                
+                flops[i] = uc.lookup(flops[i], 0);
+                printf("Modelvalue: ");
+                lbool mv = cl->modelValue(gate(flops[i]));
+                if (mv == l_True) {
+                    printf("True\n");
+                } else if (mv == l_False) {
+                    printf("False\n");
+                } else {
+                    printf("undecided\n");
+                }
+            }
 #else
-                uc.extractUsedFlops(0, flops);
+            uc.extractUsedFlops(0, flops);
 #endif
+
+
+            /* FROM subModel: (xs=flops)
+             * Gate g = gate(xs[i]);
+             * assert(cl.modelValue(g) != l_Undef);
+             * set.insert(mkSig(g, cl.modelValue(g) == l_False));*/
+            
+            DEB(printf("subModel(flops...):\n"));            
             subModel(flops,   *cl, flops_set);
+            DEB(printf("subModel(inputs...):\n"));
             subModel(inputs,  *cl, inputs_set);
+            DEB(printf("subModel(outputs...):\n"));
             subModel(outputs, *cl, outputs_set);
             outputs_set.insert(~uc.lookup(p, depth()));
             assert(cl->modelValue(~uc.lookup(p, depth())) == l_True);
-            shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, tip.verbosity >= 4);
+            /*printf("Modelvalue of uncontr(%u).next: ",uncSig.x);
+            lbool mv = cl->modelValue(uc.lookup(uncSig, depth()));
+            if (mv == l_True) {
+                printf("True\n");
+            } else if (mv == l_False) {
+                printf("False\n");
+            } else {
+                printf("undecided\n");
+            }*/
+            //shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, false);
+
+
+            /*vec<Sig>         testClause;
+            vec<lbool>       noInps;
+            testClause.clear();
+            noInps.clear();
+            testClause.push(uc.unroll(p, depth()));
+            SharedRef<ScheduledClause> testScheduledClause(NULL);
+            testScheduledClause = SharedRef<ScheduledClause>(new ScheduledClause(testClause, cycle, noInps, testScheduledClause));
+            */
 
             vec<vec<lbool> > frames;
             vec<Sig>         clause;
             for (unsigned k = 0; k <= depth(); k++)
                 traceInputs(tip, inputs_set, uc, k, frames);
             getClause(tip, flops_set, uc, 0, clause);
-
+            
+            /*for (int i = 0; i < frames.size(); i++) {
+                printf("Frame %d: ", i);
+                for (int j = 0; j < frames[i].size(); j++) {
+                    printf("%u ", toInt(frames[i][j]));
+                }
+                printf("\n");
+            }*/
+            
             vec<Sig> dummy;
             SharedRef<ScheduledClause> pred(NULL);
-            for (unsigned k = depth(); k > 0; k--)
-                pred = SharedRef<ScheduledClause>(new ScheduledClause(dummy, cycle+k, frames[k], pred));
+            //for (unsigned k = depth(); k > 0; k--)
+            //    pred = SharedRef<ScheduledClause>(new ScheduledClause(dummy, cycle+k, frames[k], pred));
             pred = SharedRef<ScheduledClause>(new ScheduledClause(clause, cycle, frames[0], pred));
             DEB(printf("[PropInstance::prove] pred = "));
             DEB(printClause(tip, *pred));
+            //DEB( (testScheduledClause != NULL) ? printClause(tip, *testScheduledClause) : (void)printf("<null>") );
+            //DEB(cout << frames);
             DEB(printf("\n"));
 
-            no     = pred;
+            no = pred;
+            DEB(printf("[PropInstance:prove] next = "));
+            DEB((pred != NULL) ? printClause(tip, *pred) : (void) printf("<null>"));
             result = l_False;
-        }else{
+        } else {
             // Take away 'act_cycle' and solve again:
             assumps.pop();
-            if (!solver->solve(assumps))
+            if (!solver->solve(assumps)) {
+                DEB(printf("[PropInstance::prove] assumptions contradictory\n"));
                 // Property is implied already by invariants:
                 result = l_True;
-            else
+            } else {
                 result = l_Undef;
+            }
         }
         cpu_time += cpuTime() - time_before;
 
@@ -912,6 +996,8 @@ namespace Tip {
                     outputs.push(y);
                 }
             }
+        
+            
         }
 
         for (int i = 0; i < props.size(); i++)
@@ -977,7 +1063,7 @@ namespace Tip {
         }
 
         
-        // Assume uncontrollability (incoming?)
+        // Assume uncontrollability (outgoing?)
         if (uncontrollable < 2) {
         Gate firstFlopGate = tip.getFirstFlop();
         Sig x = tip.flps.next(firstFlopGate);
@@ -1106,7 +1192,7 @@ namespace Tip {
         }
         cpu_time += cpuTime() - time_before;
 
-        DEB(printf("[StepInstance::prove] result = %d\n",result));
+        //DEB(printf("[StepInstance::prove] result = %d\n",result));
         return result;
     }
 
