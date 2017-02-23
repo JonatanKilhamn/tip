@@ -654,12 +654,6 @@ namespace Tip {
 
     lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle,
             int uncontr) {
-        SharedRef<ScheduledClause> nwi(NULL);
-        return prove(p, no, nwi, cycle, uncontr);
-    }
-
-    lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause>& noWithInputs, unsigned cycle,
-            int uncontr) {
         double time_before = cpuTime();
         vec<Lit> assumps;
         lbool result;
