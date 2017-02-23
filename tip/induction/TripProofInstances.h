@@ -241,8 +241,8 @@ namespace Tip {
         ~StepInstance();
         
         // uncontrollable: 0 = false, 1 = true; 2 = undef
-        bool prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL, int uncontrollable = 2);
-        bool prove(const Clause& c, Clause& yes, int uncontrollable = 2);
+        bool prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL, int uncontr = 2);
+        bool prove(const Clause& c, Clause& yes, int uncontr = 2);
 
         uint64_t props();
         uint64_t solves();

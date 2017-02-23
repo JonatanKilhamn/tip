@@ -478,7 +478,7 @@ namespace Tip {
             return true;
         }
 
-
+        
         lbool Trip::proveProp(Sig p, SharedRef<ScheduledClause>& no, int uncontr){
             return prop.prove(p, no, safe_depth+1, uncontr);
         }
@@ -1123,65 +1123,67 @@ namespace Tip {
                 Clause minimized;
                 static unsigned iters = 0;
 
-                assert(sc->cycle <= safe_depth+1);
-                int uncontr = 2; // TODO: run this with uncontr 0 or 1 depending
-                                 // on circumstances, to get the correct behaviour
-                DEB(printf("[proveRec] sc = "));
-                DEB(printClause(*sc));
-                DEB(printf("\n"));
-                if (proveAndGeneralize(sc, minimized, pred, uncontr)){
-                    DEB(printf("[proveRec] returned from proveAndGeneralize\n"));
-                    if ((iters++ % 10) == 0) printStats(sc->cycle, false);
+                assert(sc->cycle <= safe_depth + 1);
+                for (int uncontr = 0; uncontr <= 1; uncontr++) {
 
-                    cls_total_size    += minimized.size();
-                    cls_total_before  += sc->size();
-                    cls_total_removed += sc->size() - minimized.size();
-                    cnt++;
-
-                    if (bound > 0){
-                        // Handle restarts:
-                        if (restart_cnt == bound){
-                            // printf("[proveRec] restart (bound = %d)\n", bound);
-                            luby_index++;
-                            restart_cnt = 0;
-                            clause_queue.clear();
-                            return true;
-                        }else
-                            restart_cnt++;
-                    }
-                    
-                    if (addClause(minimized)){
-                        DEB(printf("[proveRec] extractInvariant:\n"));
-                        extractInvariant();
-                    }else if (fwd_inst && minimized.cycle != cycle_Undef && minimized.cycle+1 <= safe_depth+1){
-                        sc->cycle = minimized.cycle+1;
-                        enqueueClause(sc);
-                    }
-                }else if (sc->cycle == 0)
-                    return false;
-                else{
-                    
-                    // Candidate place for simply blocking bad predecessors, instead of
-                    // adding them to the queue
-                    
-                    if (pred->cycle > 0){
-                        Clause empty; empty.cycle = cycle_Undef;
-                        Clause slask;
-                        assert(init.prove(*pred, empty, slask));
-                    }
-                    
-                    /*
-                    cands_added++;
-                    cands_total_size    += pred->size();
-                    cands_total_removed += tip.flps.size() - pred->size();
-                    */
-                    DEB(printf("[proveRec] Blocking pred. clause:\n"));
-                    DEB(printClause(*pred));
+                    DEB(printf("[proveRec] sc = "));
+                    DEB(printClause(*sc));
                     DEB(printf("\n"));
-                    blockClause(pred);
+                    if (proveAndGeneralize(sc, minimized, pred, uncontr)) {
+                        DEB(printf("[proveRec] returned from proveAndGeneralize; uncontr = %d\n",uncontr));
+                        if ((iters++ % 10) == 0) printStats(sc->cycle, false);
 
-                    //enqueueClause(pred);
-                    enqueueClause(sc);
+                        cls_total_size += minimized.size();
+                        cls_total_before += sc->size();
+                        cls_total_removed += sc->size() - minimized.size();
+                        cnt++;
+
+                        if (bound > 0) {
+                            // Handle restarts:
+                            if (restart_cnt == bound) {
+                                // printf("[proveRec] restart (bound = %d)\n", bound);
+                                luby_index++;
+                                restart_cnt = 0;
+                                clause_queue.clear();
+                                return true;
+                            } else
+                                restart_cnt++;
+                        }
+
+                        if (addClause(minimized)) {
+                            DEB(printf("[proveRec] extractInvariant:\n"));
+                            extractInvariant();
+                        } else if (fwd_inst && minimized.cycle != cycle_Undef && minimized.cycle + 1 <= safe_depth + 1) {
+                            sc->cycle = minimized.cycle + 1;
+                            enqueueClause(sc);
+                        }
+                    } else if (sc->cycle == 0)
+                        return false;
+                    else {
+
+                        if (pred->cycle > 0) {
+                            Clause empty;
+                            empty.cycle = cycle_Undef;
+                            Clause slask;
+                            assert(init.prove(*pred, empty, slask));
+                        }
+
+                        if (uncontr == 0) {
+                            DEB(printf("[proveRec] Blocking pred. clause:\n"));
+                            DEB(printClause(*pred));
+                            DEB(printf("\n"));
+                            blockClause(pred);
+                            enqueueClause(sc);
+                        } else {
+                            DEB(printf("[proveRec] Enqeueing pred. clause:\n"));
+                            DEB(printClause(*pred));
+                            DEB(printf("\n"));
+                            cands_added++;
+                            cands_total_size += pred->size();
+                            cands_total_removed += tip.flps.size() - pred->size();
+                            enqueueClause(pred);
+                        }
+                    }
                 }
             }
 
@@ -1207,21 +1209,26 @@ namespace Tip {
             int                        unresolved = 0;
 
             // Process safety properties:
-            for (SafeProp p = 0; p < tip.safe_props.size(); p++)
+            // Ignore first safety prop; it's the uncontrollability sig
+            Sig uncSig = tip.safe_props[0].sig;
+            //tip.setUncSig(uncSig);
+            tip.setUncSig(uncSig);
+            for (SafeProp p = 1; p < tip.safe_props.size(); p++)
                 if (tip.safe_props[p].stat == pstat_Unknown){
                     lbool prop_res = l_False;
-                    /*do {
-                        // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
-                        int uncontr = 0; // TODO: use the uncontr flag actively                        
-                        prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
-                        if (prop_res == l_False) {
-                            blockClause(pred);
-                        }
-                    } while (prop_res == l_False);
-                    prop_res = l_False;*/
                     do {
                         // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
                         int uncontr = 0;
+                        prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
+                        if (prop_res == l_False) {
+                            //TODO: generalise these clauses somehow.
+                            blockClause(pred);
+                        }
+                    } while (prop_res == l_False);
+                    prop_res = l_False;
+                    do {
+                        // printf("[decideCycle] checking safety property %d in cycle %d\n", p, safe_depth+1);
+                        int uncontr = 1;
                         prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False){
                             cands_added++;
@@ -1249,7 +1256,7 @@ namespace Tip {
 
             // Process liveness properties:
             //event_cnts.growTo(tip.live_props.size());
-            for (LiveProp p = 0; p < tip.live_props.size(); p++)
+            /*for (LiveProp p = 0; p < tip.live_props.size(); p++)
                 if (tip.live_props[p].stat == pstat_Unknown){
 
                     lbool prop_res = l_False;
@@ -1284,6 +1291,7 @@ namespace Tip {
                         }
                     }while (prop_res == l_False);
                 }
+             */
 
             bool result;
             // Check if all properties were resolved:

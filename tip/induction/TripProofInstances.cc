@@ -14,7 +14,7 @@ NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPO
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-**************************************************************************************************/
+ **************************************************************************************************/
 
 #include "minisat/simp/SimpSolver.h"
 #include "minisat/utils/System.h"
@@ -32,12 +32,12 @@ namespace Tip {
     namespace {
 
         template<class Lits>
-        void printLits(const Lits& cs){
+        void printLits(const Lits& cs) {
             for (int i = 0; i < cs.size(); i++)
-                printf("%s%d ", sign(cs[i])?"-":"", var(cs[i]));
+                printf("%s%d ", sign(cs[i]) ? "-" : "", var(cs[i]));
         }
 
-        void printSSet(const TipCirc& tip, const char* prefix, const vec<Sig>& xs, unsigned cycle = cycle_Undef){
+        void printSSet(const TipCirc& tip, const char* prefix, const vec<Sig>& xs, unsigned cycle = cycle_Undef) {
             printf("%s", prefix);
             Clause tmp(xs, cycle);
             printClause(tip, tmp);
@@ -48,19 +48,17 @@ namespace Tip {
             Sig x;
             Lit l;
         };
-        
+
         struct SigLitCmp {
+
             bool operator()(SigLitPair p1, SigLitPair p2) const {
                 return p1.l < p2.l;
             }
         };
 
-
-
-        void extractResetInputs(const TipCirc& tip, const GMap<Sig>& umap, 
-                                Clausifyer<SimpSolver>& cl, SimpSolver& solver, GMap<Lit>& umapl, vec<Lit>& xs)
-        {
-            for (InpIt iit = tip.init.inpBegin(); iit != tip.init.inpEnd(); ++iit){
+        void extractResetInputs(const TipCirc& tip, const GMap<Sig>& umap,
+                Clausifyer<SimpSolver>& cl, SimpSolver& solver, GMap<Lit>& umapl, vec<Lit>& xs) {
+            for (InpIt iit = tip.init.inpBegin(); iit != tip.init.inpEnd(); ++iit) {
                 Sig inp = umap[*iit];
                 Lit lit = cl.clausify(inp);
                 umapl[*iit] = lit;
@@ -70,34 +68,35 @@ namespace Tip {
         }
 
         void extractFlopReset(const TipCirc& tip, const GMap<Sig>& umap,
-                              Clausifyer<SimpSolver>& cl, SimpSolver& solver, GMap<Lit>& umapl)
-        {
-            for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit){
-                Sig  flp_res         = tip.flps.init(*flit);
-                Lit  lit_res         = cl.clausify(umap[gate(flp_res)] ^ sign(flp_res));
+                Clausifyer<SimpSolver>& cl, SimpSolver& solver, GMap<Lit>& umapl) {
+            for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
+                Sig flp_res = tip.flps.init(*flit);
+                Lit lit_res = cl.clausify(umap[gate(flp_res)] ^ sign(flp_res));
                 umapl[gate(flp_res)] = lit_res ^ sign(flp_res);
                 solver.freezeVar(var(lit_res));
             }
         }
 
         // (stolen from Solver.h)
+
         static inline double drand(double& seed) {
             seed *= 1389796;
-            int q = (int)(seed / 2147483647);
-            seed -= (double)q * 2147483647;
-            return seed / 2147483647; }
+            int q = (int) (seed / 2147483647);
+            seed -= (double) q * 2147483647;
+            return seed / 2147483647;
+        }
 
         // (stolen from Solver.h)
+
         static inline int irand(double& seed, int size) {
-            return (int)(drand(seed) * size); }
-        
+            return (int) (drand(seed) * size);
+        }
 
         template<class T>
-        static void randomShuffle(double& seed, vec<T>& xs)
-        {
-            for (int i = 0; i < xs.size(); i++){
+        static void randomShuffle(double& seed, vec<T>& xs) {
+            for (int i = 0; i < xs.size(); i++) {
                 int pick = i + irand(seed, xs.size() - i);
-                
+
                 assert(pick < xs.size());
 
                 T tmp = xs[i];
@@ -106,11 +105,9 @@ namespace Tip {
             }
         }
 
-
         void shrinkModel(SimpSolver& s, Clausifyer<SimpSolver>& cl,
-                         const vec<Sig>& fixed, vec<Sig>& xs, const vec<Sig>& top,
-                         const vec<Lit>& fixed_lits, unsigned iters = 32, bool verbose = false)
-        {
+                const vec<Sig>& fixed, vec<Sig>& xs, const vec<Sig>& top,
+                const vec<Lit>& fixed_lits, unsigned iters = 32, bool verbose = false) {
             // printf("[shrinkModel] begin\n");
 
             int size_first = xs.size();
@@ -126,7 +123,7 @@ namespace Tip {
 #endif
 
             // Simple variant for now:
-            Lit      trigg = mkLit(s.newVar());
+            Lit trigg = mkLit(s.newVar());
             vec<Lit> clause;
             for (int i = 0; i < top.size(); i++)
                 clause.push(~cl.lookup(top[i]));
@@ -143,15 +140,16 @@ namespace Tip {
 
             vec<Lit> assume;
             unsigned fails = 0;
-            for (uint32_t i = 0; fails < 2 && i < iters; i++){
+            for (uint32_t i = 0; fails < 2 && i < iters; i++) {
                 int size_before = xs.size();
 
                 // Shuffle the order of literals to increase chance of other removal opportunities,
                 // except in first iteration:
                 static double seed = 12345678;
-                if (i > 0){
+                if (i > 0) {
                     randomShuffle(seed, xs);
-                    randomShuffle(seed, fix); }
+                    randomShuffle(seed, fix);
+                }
 
                 // Join the set of fixed literals + plus the current minimized set 'xs'. It is
                 // important to place 'xs' last as this increases the likelyhood of those literals
@@ -164,15 +162,15 @@ namespace Tip {
                 check(!s.solve(assume));
 
                 // Copy the literals in 'xs' that were still needed in the conflict:
-                int j,k;
+                int j, k;
                 for (j = k = 0; j < xs.size(); j++)
                     if (s.conflict.has(~cl.lookup(xs[j])))
                         xs[k++] = xs[j];
                 xs.shrink(j - k);
 
-                if (xs.size() < size_before){
+                if (xs.size() < size_before) {
                     if (verbose) printf(".%d", xs.size());
-                }else{
+                } else {
                     fails++;
                     if (verbose) printf("x");
                 }
@@ -184,18 +182,16 @@ namespace Tip {
         }
 
         void shrinkModel(SimpSolver& s, Clausifyer<SimpSolver>& cl,
-                         const vec<Sig>& fixed, vec<Sig>& xs, const vec<Sig>& top, unsigned iters = 32, bool verbose = false)
-        {
+                const vec<Sig>& fixed, vec<Sig>& xs, const vec<Sig>& top, unsigned iters = 32, bool verbose = false) {
             vec<Lit> empty;
             shrinkModel(s, cl, fixed, xs, top, empty, iters, verbose);
         }
 
-
         void shrinkModel(SimpSolver& s, Clausifyer<SimpSolver>& cl,
-                         const SSet& fixed, SSet& xs, const SSet& top, const vec<Lit>& fixed_lits, unsigned iters = 32, bool verbose = false)
-        {
+                const SSet& fixed, SSet& xs, const SSet& top, const vec<Lit>& fixed_lits, unsigned iters = 32, bool verbose = false) {
             // Copy the set 'xs':
-            vec<Sig> ys; xs.toVec().copyTo(ys);
+            vec<Sig> ys;
+            xs.toVec().copyTo(ys);
 
             shrinkModel(s, cl, fixed.toVec(), ys, top.toVec(), fixed_lits, iters, verbose);
 
@@ -205,112 +201,101 @@ namespace Tip {
                 xs.insert(ys[i]);
         }
 
-
         void shrinkModel(SimpSolver& s, Clausifyer<SimpSolver>& cl,
-                         const SSet& fixed, SSet& xs, const SSet& top, unsigned iters = 32, bool verbose = false)
-        {
+                const SSet& fixed, SSet& xs, const SSet& top, unsigned iters = 32, bool verbose = false) {
             vec<Lit> empty;
             shrinkModel(s, cl, fixed, xs, top, empty, iters, verbose);
         }
 
-
-        void traceResetInputs(const TipCirc& tip, const LitSet& lset, const GMap<Lit>& umapl, vec<vec<lbool> >& frames)
-        {
+        void traceResetInputs(const TipCirc& tip, const LitSet& lset, const GMap<Lit>& umapl, vec<vec<lbool> >& frames) {
             frames.push();
             for (InpIt iit = tip.init.inpBegin(); iit != tip.init.inpEnd(); ++iit)
-                if (tip.init.number(*iit) != UINT32_MAX){
+                if (tip.init.number(*iit) != UINT32_MAX) {
                     Gate inp = *iit;
-                    Lit  l   = umapl[inp];
-                    frames.last().growTo(tip.init.number(inp)+1, l_Undef);
+                    Lit l = umapl[inp];
+                    frames.last().growTo(tip.init.number(inp) + 1, l_Undef);
                     frames.last()[tip.init.number(inp)] = lset.has(var(l)) ^ sign(l);
                 }
         }
 
-
-        void traceInputs(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, unsigned cycle, vec<vec<lbool> >& frames)
-        {
+        void traceInputs(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, unsigned cycle, vec<vec<lbool> >& frames) {
             frames.push();
             for (TipCirc::InpIt iit = tip.inpBegin(); iit != tip.inpEnd(); ++iit)
-                if (tip.main.number(*iit) != UINT32_MAX){
+                if (tip.main.number(*iit) != UINT32_MAX) {
                     Gate inp = *iit;
-                    Sig  x   = uc.lookup(inp, cycle);
-                    DEB(printf("Tracing input %u: ", tip.main.number(inp)));
-                    frames.last().growTo(tip.main.number(inp)+1, l_Undef);
-                    if (x != sig_Undef){
+                    Sig x = uc.lookup(inp, cycle);
+                    frames.last().growTo(tip.main.number(inp) + 1, l_Undef);
+                    if (x != sig_Undef) {
                         if (submodel.has(x)) {
                             frames.last()[tip.main.number(inp)] = l_True;
-                            DEB(printf("l_true\n"));
                         } else if (submodel.has(~x)) {
                             frames.last()[tip.main.number(inp)] = l_False;
-                            DEB(printf("l_false\n"));
                         } else
                             frames.last()[tip.main.number(inp)] = l_Undef;
-                    }else
+                    } else
                         frames.last()[tip.main.number(inp)] = l_Undef;
                 }
         }
 
-
-        void traceResetInputs(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, vec<vec<lbool> >& frames)
-        {
+        void traceResetInputs(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, vec<vec<lbool> >& frames) {
             frames.push();
             for (InpIt iit = tip.init.inpBegin(); iit != tip.init.inpEnd(); ++iit)
-                if (tip.init.number(*iit) != UINT32_MAX){
+                if (tip.init.number(*iit) != UINT32_MAX) {
                     Gate inp = *iit;
-                    Sig  x   = uc.lookupInit(inp);
-                    frames.last().growTo(tip.init.number(inp)+1, l_Undef);
-                    if (x != sig_Undef){
+                    Sig x = uc.lookupInit(inp);
+                    frames.last().growTo(tip.init.number(inp) + 1, l_Undef);
+                    if (x != sig_Undef) {
                         if (submodel.has(x))
                             frames.last()[tip.init.number(inp)] = l_True;
                         else if (submodel.has(~x))
                             frames.last()[tip.init.number(inp)] = l_False;
                         else
                             frames.last()[tip.init.number(inp)] = l_Undef;
-                    }else
+                    } else
                         frames.last()[tip.init.number(inp)] = l_Undef;
                 }
         }
 
-
-        void getClause(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, unsigned cycle, vec<Sig>& xs)
-        {
+        void getClause(const TipCirc& tip, const SSet& submodel, const UnrolledCirc& uc, unsigned cycle, vec<Sig>& xs) {
             xs.clear();
-            int counter = 0;
             for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
-                DEB(printf("Flop %d@%u: gate %u; lookup %u alt. ", counter, cycle, (*flit).x, uc.lookup(*flit, 0).x));
-                DEB(tip.printSig(uc.lookup(*flit, cycle)));
-                DEB(printf("; mkSig %u alt. ", mkSig(*flit)));
-                DEB(tip.printSig(mkSig(*flit)));
-                DEB(printf("; .next %u alt. ", tip.flps.next(*flit)));
-                DEB(tip.printSig(tip.flps.next(*flit)));
-                DEB(printf("\n"));
-                if (uc.lookup(*flit, cycle) != sig_Undef){
+                if (uc.lookup(*flit, cycle) != sig_Undef) {
                     Sig q = uc.lookup(*flit, cycle);
                     if (submodel.has(q)) {
                         xs.push(~mkSig(*flit));
-                        printf("Value: True\n");
                     } else if (submodel.has(~q)) {
                         xs.push(mkSig(*flit));
-                        printf("Value: False\n");
-                    } else {
-                        printf("Value: undecided\n");
                     }
                 }
-                counter++;
+            }
+        }
 
+        void addInputsToClause(const TipCirc& tip, const SSet& inpsubmodel, const UnrolledCirc& uc, unsigned cycle, vec<Sig>& xs) {
+            for (TipCirc::InpIt inpit = tip.inpBegin(); inpit != tip.inpEnd(); ++inpit) {
+                if (uc.lookup(*inpit, cycle) != sig_Undef) {
+                    Sig q = uc.lookup(*inpit, cycle);
+                    if (inpsubmodel.has(q)) {
+                        xs.push(~mkSig(*inpit));
+                    } else if (inpsubmodel.has(~q)) {
+                        xs.push(mkSig(*inpit));
+                    } else {
+                    }
+                }
             }
         }
 
 
+
+
         // NOTE: Ignores sign of signals in 'xs':
-        void subModel(const vec<Sig>& xs, Clausifyer<SimpSolver>& cl, SSet& set)
-        {
+
+        void subModel(const vec<Sig>& xs, Clausifyer<SimpSolver>& cl, SSet& set) {
             set.clear();
-            for (int i = 0; i < xs.size(); i++){
+            for (int i = 0; i < xs.size(); i++) {
                 Gate g = gate(xs[i]);
                 assert(cl.modelValue(g) != l_Undef);
                 set.insert(mkSig(g, cl.modelValue(g) == l_False));
-                DEB(printf("Flop %i: %u\n",i,set[i].x));
+                //DEB(printf("Flop %i: %u\n",i,set[i].x));
             }
         }
 
@@ -320,13 +305,12 @@ namespace Tip {
     //===================================================================================================
     // Implementation of InitInstance:
 
-    void InitInstance::reset()
-    {
+    void InitInstance::reset() {
         if (solver != NULL) delete solver;
-        if (cl != NULL)     delete cl;
+        if (cl != NULL) delete cl;
 
         solver = new SimpSolver();
-        cl     = new Clausifyer<SimpSolver>(uc, *solver);
+        cl = new Clausifyer<SimpSolver>(uc, *solver);
 
         inputs .clear();
 
@@ -349,7 +333,7 @@ namespace Tip {
         cl->clausify(gate_True);
 
         // Simplify CNF:
-        if (cnf_level >= 2){
+        if (cnf_level >= 2) {
             solver->use_asymm = tip.main.nGates() < CNF_ASYMM_LIMIT;
             solver->grow = 2;
         }
@@ -360,26 +344,24 @@ namespace Tip {
         //printf(" (after)  #vars = %d, #clauses = %d\n", solver->nFreeVars(), solver->nClauses());
     }
 
-
-    void InitInstance::reduceClause(Clause& c)
-    {
+    void InitInstance::reduceClause(Clause& c) {
         vec<SigLitPair> slits;
-        for (unsigned i = 0; i < c.size(); i++){
+        for (unsigned i = 0; i < c.size(); i++) {
             SigLitPair p;
-            p.x   = c[i];
+            p.x = c[i];
             Sig x = uc.unroll(p.x, 0);
-            p.l   = cl->lookup(x);
+            p.l = cl->lookup(x);
             slits.push(p);
         }
 
         sort(slits, SigLitCmp());
-        
+
         // TODO: maybe prefer "larger" flops while removing duplicates.
-        int i,j;
+        int i, j;
         for (i = j = 1; i < slits.size(); i++)
-            if (slits[i].l != slits[j-1].l)
+            if (slits[i].l != slits[j - 1].l)
                 slits[j++] = slits[i];
-        slits.shrink(i-j);
+        slits.shrink(i - j);
 
         vec<Sig> d;
         for (i = 0; i < slits.size(); i++)
@@ -388,10 +370,8 @@ namespace Tip {
         c = Clause(d, c.cycle);
     }
 
-
-    bool InitInstance::prove(const Clause& c_, const Clause& bot, 
-                             Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next)
-    {
+    bool InitInstance::prove(const Clause& c_, const Clause& bot,
+            Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next) {
         assert(next == NULL || &c_ == (Clause*)&*next);
         assert(subsumes(bot, c_));
 
@@ -399,11 +379,11 @@ namespace Tip {
         Clause cand_;
         Clause rest;
 
-        if (bot.size() == 0){
+        if (bot.size() == 0) {
             cand_ = c_;
-        }else{
+        } else {
             cand_ = bot;
-            rest  = c_ - bot;
+            rest = c_ - bot;
         }
 
         reduceClause(cand_);
@@ -413,15 +393,15 @@ namespace Tip {
         for (unsigned i = 0; i < cand_.size(); i++) cand.push(cand_[i]);
 
         vec<Lit> assumes;
-        bool     result;
+        bool result;
 
-        for (int i = 0; i < cand.size(); i++){
+        for (int i = 0; i < cand.size(); i++) {
             Sig x = uc.unroll(cand[i], 0);
             Lit l = cl->lookup(x);
             assert(l != lit_Undef);
             assumes.push(~l);
         }
-        
+
 
         if (next == NULL)
             solver->extend_model = false;
@@ -433,100 +413,104 @@ namespace Tip {
             // printSigs(cand);
             // printf("\n");
             bad_model = false;
-            sat       = solver->solve(assumes);
+            sat = solver->solve(assumes);
             if (sat)
-                for (unsigned i = 0; i < rest.size(); i++){
+                for (unsigned i = 0; i < rest.size(); i++) {
                     Sig x = uc.unroll(rest[i], 0);
                     Lit l = cl->lookup(x);
                     assert(solver->modelValue(l) != l_Undef);
-                    if (solver->modelValue(l) == l_True){
+                    if (solver->modelValue(l) == l_True) {
                         cand.push(rest[i]);
                         assumes.push(~l);
                         bad_model = true;
                     }
                 }
-        }while (bad_model);
+        } while (bad_model);
 
-        if (sat){
+        if (sat) {
             // Found a counter-example:
-            if (next != NULL){
-                subModel(inputs,  *cl, inputs_set);
+            if (next != NULL) {
+                subModel(inputs, *cl, inputs_set);
                 vec<vec<lbool> > frames;
-                vec<Sig>         dummy;
+                vec<Sig> dummy;
                 traceResetInputs(tip, inputs_set, uc, frames);
                 SharedRef<ScheduledClause> pred_rst(new ScheduledClause(dummy, 0, frames[0], next));
-                    
+
                 no = pred_rst;
             }
             result = false;
-        }else{
+        } else {
             assert(solver->conflict.size() > 0);
             // Proved the clause:
-            
+
             vec<Sig> subset;
-            for (int i = 0; i < cand.size(); i++){
+            for (int i = 0; i < cand.size(); i++) {
                 Sig x = uc.unroll(cand[i], 0);
                 Lit l = cl->lookup(x);
                 if (solver->conflict.has(l))
                     subset.push(cand[i]);
             }
-                
-            yes    = bot + Clause(subset, 0);
+
+            yes = bot + Clause(subset, 0);
             result = true;
         }
 
         solver->extend_model = true;
         cpu_time += cpuTime() - time_before;
-        
+
         return result;
     }
 
-    bool InitInstance::prove(const Clause& c, const Clause& bot, Clause& yes)
-    {
+    bool InitInstance::prove(const Clause& c, const Clause& bot, Clause& yes) {
         SharedRef<ScheduledClause> dummy;
         return prove(c, bot, yes, dummy);
     }
 
-
-    InitInstance::InitInstance(const TipCirc& t, int cnf_level_) 
-        : tip(t), uc(t, false), solver(NULL), cl(NULL), cpu_time(0), cnf_level(cnf_level_)
-    {
+    InitInstance::InitInstance(const TipCirc& t, int cnf_level_)
+    : tip(t), uc(t, false), solver(NULL), cl(NULL), cpu_time(0), cnf_level(cnf_level_) {
         reset();
     }
 
-
-    InitInstance::~InitInstance(){ }
-
-    uint64_t InitInstance::props (){ return solver->propagations; }
-    uint64_t InitInstance::confl (){ return solver->conflicts; }
-    uint64_t InitInstance::solves(){ return solver->solves; }
-    double   InitInstance::time  (){ return cpu_time; }
-
-    void InitInstance::printStats()
-    {
-        printf("[init-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n", 
-               (double)solver->nFreeVars(), (double)solver->nClauses(), (double)solver->conflicts);
+    InitInstance::~InitInstance() {
     }
-    
+
+    uint64_t InitInstance::props() {
+        return solver->propagations;
+    }
+
+    uint64_t InitInstance::confl() {
+        return solver->conflicts;
+    }
+
+    uint64_t InitInstance::solves() {
+        return solver->solves;
+    }
+
+    double InitInstance::time() {
+        return cpu_time;
+    }
+
+    void InitInstance::printStats() {
+        printf("[init-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n",
+                (double) solver->nFreeVars(), (double) solver->nClauses(), (double) solver->conflicts);
+    }
+
     //===================================================================================================
     // Implementation of PropInstance:
 
-    void PropInstance::clearClauses(unsigned safe_lim)
-    {
+    void PropInstance::clearClauses(unsigned safe_lim) {
         // printf("[PropInstance::clearClauses]\n");
         solver->releaseVar(~act_cycle);
         act_cycle = mkLit(solver->newVar());
 
         for (int i = safe_lim; i < F.size(); i++)
-            for (int j = 0; j < F[i].size(); j++){
+            for (int j = 0; j < F[i].size(); j++) {
                 assert(F[i][j]->isActive());
                 addClause(*F[i][j]);
             }
     }
 
-
-    void PropInstance::addClause(const Clause& c)
-    {
+    void PropInstance::addClause(const Clause& c) {
         // printf("[PropInstance::addClause] c = ");
         // printClause(tip, c);
         // printf("\n");
@@ -539,37 +523,35 @@ namespace Tip {
         solver->addClause(xs);
     }
 
-
-    void PropInstance::reset(unsigned safe_lim, unsigned new_depth)
-    {
+    void PropInstance::reset(unsigned safe_lim, unsigned new_depth) {
         depth_ = new_depth;
 
         if (solver != NULL) delete solver;
-        if (cl != NULL)     delete cl;
+        if (cl != NULL) delete cl;
 
         solver = new SimpSolver();
-        cl     = new Clausifyer<SimpSolver>(uc, *solver);
+        cl = new Clausifyer<SimpSolver>(uc, *solver);
 
         needed_flops.clear();
         inputs .clear();
         outputs.clear();
-        flops  .clear();
+        flops .clear();
 
         if (cnf_level == 0)
             solver->eliminate(true);
 
-        act_cycle  = mkLit(solver->newVar());
+        act_cycle = mkLit(solver->newVar());
         act_cnstrs = mkLit(solver->newVar());
         solver->freezeVar(var(act_cycle));
         solver->freezeVar(var(act_cnstrs));
 
-        vec<Sig>       props;
+        vec<Sig> props;
         vec<vec<Sig> > cnstrs;
 
         // Unroll constraints and liveness properties:
-        for (unsigned cycle = 0; cycle <= depth(); cycle++){
+        for (unsigned cycle = 0; cycle <= depth(); cycle++) {
             uc.unrollConstraints(cycle, cnstrs);
-            uc.unrollLiveProps  (cycle, props);
+            uc.unrollLiveProps(cycle, props);
         }
 
         // Unroll property in last frame:
@@ -582,10 +564,10 @@ namespace Tip {
                     props.push(uc.unroll(event_cnts[p].q, cycle));
 
         // Extract and unroll internal flops needed for unique state induction:
-        if (use_uniq){
-            for (unsigned i = 0; i <= depth(); i++){
+        if (use_uniq) {
+            for (unsigned i = 0; i <= depth(); i++) {
                 needed_flops.push();
-                for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit){
+                for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
                     Sig flp = uc.lookup(*flit, i);
                     if (flp != sig_Undef)
                         needed_flops.last().push(mkSig(*flit));
@@ -596,12 +578,12 @@ namespace Tip {
             }
 
             SSet front;
-            for (int i = depth(); i >= 0; i--){
+            for (int i = depth(); i >= 0; i--) {
                 for (int j = 0; j < needed_flops[i].size(); j++)
                     front.insert(needed_flops[i][j]);
                 for (int j = 0; j < front.size(); j++)
                     props.push(uc.unroll(front[j], i));
-            }            
+            }
         }
 
         if (use_ind)
@@ -627,14 +609,14 @@ namespace Tip {
             solver->freezeVar(var(cl->clausify(flops[i])));
 
         // Clausify and freeze constraint variables:
-        if (cnstrs.size() > 0){
+        if (cnstrs.size() > 0) {
             for (unsigned cycle = 0; cycle <= depth(); cycle++)
-                for (int i = 0; i < cnstrs.size(); i++){
+                for (int i = 0; i < cnstrs.size(); i++) {
                     Sig x = cnstrs[i][0];
                     Lit p = cl->clausify(x);
                     solver->freezeVar(var(p));
                     outputs.push(x);
-                    for (int j = 1; j < cnstrs[i].size(); j++){
+                    for (int j = 1; j < cnstrs[i].size(); j++) {
                         Sig y = cnstrs[i][j];
                         Lit q = cl->clausify(y);
                         solver->freezeVar(var(q));
@@ -649,7 +631,7 @@ namespace Tip {
             solver->freezeVar(var(cl->clausify(props[i])));
 
         // Simplify CNF:
-        if (cnf_level >= 2){
+        if (cnf_level >= 2) {
             solver->use_asymm = tip.main.nGates() < CNF_ASYMM_LIMIT;
             solver->grow = 2;
         }
@@ -661,7 +643,7 @@ namespace Tip {
 
         // Add all previously existing clauses relevant to the prop-instance:
         for (int i = safe_lim; i < F.size(); i++)
-            for (int j = 0; j < F[i].size(); j++){
+            for (int j = 0; j < F[i].size(); j++) {
                 assert(F[i][j]->isActive());
                 addClause(*F[i][j]);
             }
@@ -670,47 +652,39 @@ namespace Tip {
             addClause(*F_inv[i]);
     }
 
-
     lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle,
-            int uncontr)
-    {
-        double   time_before = cpuTime();
+            int uncontr) {
+        SharedRef<ScheduledClause> nwi(NULL);
+        return prove(p, no, nwi, cycle, uncontr);
+    }
+
+    lbool PropInstance::prove(Sig p, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause>& noWithInputs, unsigned cycle,
+            int uncontr) {
+        double time_before = cpuTime();
         vec<Lit> assumps;
-        lbool    result;
-        
-        Sig uncSig;
+        lbool result;
+
         // Assume uncontrollability (outgoing)
         if (uncontr < 2) {
-            Gate firstFlopGate = tip.getFirstFlop();
-            uncSig = tip.flps.next(firstFlopGate);
-            Lit l = cl->clausify(uc.unroll(uncSig, 0));
+            Lit l = cl->clausify(uc.unroll(tip.uncSig, depth()));
 
-            l = cl->clausify(uc.unroll(uncSig, depth()));
-            
-            DEB(printf("uncSig when pushing assumption: %d alt. ", uncSig.x));
-            DEB(tip.printSig(uncSig));
-            DEB(printf("\n"));
-           
+            DEB(printf("[PropInstance::prove] Assuming uncontr = %d\n", uncontr));
             if (uncontr == 1) {
-                printf("Pushing uncontr=1\n");
                 assumps.push(l);
-            }
-            else {
-                printf("Pushing uncontr=0\n");
+            } else {
                 assumps.push(~l);
             }
-        }        
-        
-        Lit      l = cl->clausify(uc.unroll(p, depth()));
-        
+        }
+
+
+        Lit l = cl->clausify(uc.unroll(p, depth()));
+
         /*DEB(printf("Safety at depth: %d; ", l.x));
         tip.printSig(p);
         DEB(printf("\n"));*/
 
         assumps.push(~l);
-        
-        
-        
+
         assumps.push(act_cnstrs);
         assumps.push(act_cycle);
         /*for (int i = 0; i<assumps.size(); i++) {
@@ -729,27 +703,27 @@ next:
             ;
         }
 
-        if (sat){
+        if (sat) {
             assert(solver->modelValue(l) == l_False);
             // Found predecessor state to a bad state:
             flops.clear();
 #if 1
-            int counter = 0;
+            //int counter = 0;
             for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit) {
                 if (uc.lookup(*flit, 0) != sig_Undef) {
                     flops.push(mkSig(*flit));
-                    DEB(printf("Def: %u\n", (*flit).x));
+                    //DEB(printf("Def: %u\n", (*flit).x));
                 }
-                DEB(printf("Flop %d: gate %u; lookup %u alt. ", counter, (*flit).x, uc.lookup(*flit, 0).x));
+                /*DEB(printf("Flop %d: gate %u; lookup %u alt. ", counter, (*flit).x, uc.lookup(*flit, 0).x));
                 DEB(tip.printSig(uc.lookup(*flit, 0)));
                 DEB(printf("; mkSig %u alt. ", mkSig(*flit)));
                 DEB(tip.printSig(mkSig(*flit)));
                 DEB(printf("; .next %u alt. ", tip.flps.next(*flit)));
                 DEB(tip.printSig(tip.flps.next(*flit)));
                 DEB(printf("\n"));
-                counter++;
+                counter++;*/
 
-                uint32_t i = tip.main.number(gate(mkSig(*flit)));
+                /*uint32_t i = tip.main.number(gate(mkSig(*flit)));
                 printf("Modelvalue of %u.next: ",tip.flps.next(*flit).x);
                 if (cl->modelValue(uc.lookup(tip.flps.next(*flit), depth())) == l_True) {
                     printf("True\n");
@@ -757,17 +731,17 @@ next:
                     printf("False\n");
                 } else {
                     printf("undecided\n");
-                }
+                }*/
             }
             sort(flops, SigActGt(flop_act));
-            //sort(flops, SigActLt(flop_act));
-            DEB(printf("After sorting\n"));
+            sort(flops, SigActLt(flop_act));
+            //DEB(printf("After sorting\n"));
             for (int i = 0; i < flops.size(); i++) {
-                DEB(printf("Flop %d: flops[i] %u; lookup %u\n", i, flops[i].x, uc.lookup(flops[i], 0)));
-                DEB(printf("gate(flops[i]) %u\n", gate(flops[i]).x));
-                
+                /*DEB(printf("Flop %d: flops[i] %u; lookup %u\n", i, flops[i].x, uc.lookup(flops[i], 0)));
+                DEB(printf("gate(flops[i]) %u\n", gate(flops[i]).x));*/
+
                 flops[i] = uc.lookup(flops[i], 0);
-                printf("Modelvalue: ");
+                /*printf("Modelvalue: ");
                 lbool mv = cl->modelValue(gate(flops[i]));
                 if (mv == l_True) {
                     printf("True\n");
@@ -775,7 +749,7 @@ next:
                     printf("False\n");
                 } else {
                     printf("undecided\n");
-                }
+                }*/
             }
 #else
             uc.extractUsedFlops(0, flops);
@@ -786,12 +760,12 @@ next:
              * Gate g = gate(xs[i]);
              * assert(cl.modelValue(g) != l_Undef);
              * set.insert(mkSig(g, cl.modelValue(g) == l_False));*/
-            
-            DEB(printf("subModel(flops...):\n"));            
-            subModel(flops,   *cl, flops_set);
-            DEB(printf("subModel(inputs...):\n"));
-            subModel(inputs,  *cl, inputs_set);
-            DEB(printf("subModel(outputs...):\n"));
+
+            //DEB(printf("subModel(flops...):\n"));            
+            subModel(flops, *cl, flops_set);
+            //DEB(printf("subModel(inputs...):\n"));
+            subModel(inputs, *cl, inputs_set);
+            //DEB(printf("subModel(outputs...):\n"));
             subModel(outputs, *cl, outputs_set);
             outputs_set.insert(~uc.lookup(p, depth()));
             assert(cl->modelValue(~uc.lookup(p, depth())) == l_True);
@@ -804,7 +778,7 @@ next:
             } else {
                 printf("undecided\n");
             }*/
-            //shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, false);
+            shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, false);
 
 
             /*vec<Sig>         testClause;
@@ -814,14 +788,20 @@ next:
             testClause.push(uc.unroll(p, depth()));
             SharedRef<ScheduledClause> testScheduledClause(NULL);
             testScheduledClause = SharedRef<ScheduledClause>(new ScheduledClause(testClause, cycle, noInps, testScheduledClause));
-            */
+             */
 
             vec<vec<lbool> > frames;
-            vec<Sig>         clause;
+            vec<Sig> clause;
             for (unsigned k = 0; k <= depth(); k++)
                 traceInputs(tip, inputs_set, uc, k, frames);
             getClause(tip, flops_set, uc, 0, clause);
-            
+
+            if (uncontr == 0) {
+                // If this is the uncontrollable case, we want to block the clause
+                addInputsToClause(tip, inputs_set, uc, 0, clause);
+            }
+
+
             /*for (int i = 0; i < frames.size(); i++) {
                 printf("Frame %d: ", i);
                 for (int j = 0; j < frames[i].size(); j++) {
@@ -829,12 +809,14 @@ next:
                 }
                 printf("\n");
             }*/
-            
+
             vec<Sig> dummy;
+            vec<lbool> dummy2;
             SharedRef<ScheduledClause> pred(NULL);
             //for (unsigned k = depth(); k > 0; k--)
             //    pred = SharedRef<ScheduledClause>(new ScheduledClause(dummy, cycle+k, frames[k], pred));
             pred = SharedRef<ScheduledClause>(new ScheduledClause(clause, cycle, frames[0], pred));
+
             DEB(printf("[PropInstance::prove] pred = "));
             DEB(printClause(tip, *pred));
             //DEB( (testScheduledClause != NULL) ? printClause(tip, *testScheduledClause) : (void)printf("<null>") );
@@ -842,8 +824,6 @@ next:
             DEB(printf("\n"));
 
             no = pred;
-            DEB(printf("[PropInstance:prove] next = "));
-            DEB((pred != NULL) ? printClause(tip, *pred) : (void) printf("<null>"));
             result = l_False;
         } else {
             // Take away 'act_cycle' and solve again:
@@ -863,47 +843,56 @@ next:
         return result;
     }
 
-
     PropInstance::PropInstance(const TipCirc& t, const vec<vec<Clause*> >& F_, const vec<Clause*>& F_inv_, const vec<EventCounter>& event_cnts_, GMap<float>& flop_act_,
-                               int cnf_level_, uint32_t max_min_tries_, int depth, bool use_ind_, bool use_uniq_)
-        : tip(t), F(F_), F_inv(F_inv_), event_cnts(event_cnts_), flop_act(flop_act_), 
-          uc(t), solver(NULL), cl(NULL), act_cnstrs(lit_Undef), cpu_time(0),
-          cnf_level(cnf_level_), max_min_tries(max_min_tries_), depth_(depth), use_ind(use_ind_), use_uniq(use_uniq_)
-    {
+            int cnf_level_, uint32_t max_min_tries_, int depth, bool use_ind_, bool use_uniq_)
+    : tip(t), F(F_), F_inv(F_inv_), event_cnts(event_cnts_), flop_act(flop_act_),
+    uc(t), solver(NULL), cl(NULL), act_cnstrs(lit_Undef), cpu_time(0),
+    cnf_level(cnf_level_), max_min_tries(max_min_tries_), depth_(depth), use_ind(use_ind_), use_uniq(use_uniq_) {
         reset(0, depth_);
     }
 
+    PropInstance::~PropInstance() {
+    }
 
-    PropInstance::~PropInstance(){ }
+    uint64_t PropInstance::props() {
+        return solver->propagations;
+    }
 
-    uint64_t PropInstance::props (){ return solver->propagations; }
-    uint64_t PropInstance::confl (){ return solver->conflicts; }
-    uint64_t PropInstance::solves(){ return solver->solves; }
-    double   PropInstance::time  (){ return cpu_time; }
-    unsigned PropInstance::depth (){ return depth_; }
+    uint64_t PropInstance::confl() {
+        return solver->conflicts;
+    }
 
-    void PropInstance::printStats()
-    {
-        printf("[prop-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n", 
-               (double)solver->nFreeVars(), (double)solver->nClauses(), (double)solver->conflicts);
+    uint64_t PropInstance::solves() {
+        return solver->solves;
+    }
+
+    double PropInstance::time() {
+        return cpu_time;
+    }
+
+    unsigned PropInstance::depth() {
+        return depth_;
+    }
+
+    void PropInstance::printStats() {
+        printf("[prop-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n",
+                (double) solver->nFreeVars(), (double) solver->nClauses(), (double) solver->conflicts);
     }
 
     //===================================================================================================
     // Implementation of StepInstance:
 
-
-    void StepInstance::addClause(const Clause& c)
-    {
+    void StepInstance::addClause(const Clause& c) {
         vec<Lit> xs;
         // Add the clause unconditionally if it is an invariant, otherwise make it triggered by the
         // cycle's activation literal:
-        if (c.cycle != cycle_Undef){
-            activate.growTo(c.cycle+1, lit_Undef);
+        if (c.cycle != cycle_Undef) {
+            activate.growTo(c.cycle + 1, lit_Undef);
             if (activate[c.cycle] == lit_Undef)
                 activate[c.cycle] = mkLit(solver->newVar());
             xs.push(~activate[c.cycle]);
 
-            cycle_clauses.growTo(c.cycle+1, 0);
+            cycle_clauses.growTo(c.cycle + 1, 0);
             cycle_clauses[c.cycle]++;
         }
 
@@ -912,11 +901,9 @@ next:
         solver->addClause(xs);
     }
 
-
-    void StepInstance::resetCycle(unsigned cycle, unsigned num_clauses)
-    {
+    void StepInstance::resetCycle(unsigned cycle, unsigned num_clauses) {
         assert(cycle != cycle_Undef);
-        if ((int)cycle < cycle_clauses.size() && (cycle_clauses[cycle] / 2) > num_clauses){
+        if ((int) cycle < cycle_clauses.size() && (cycle_clauses[cycle] / 2) > num_clauses) {
             // Disable all clauses added to this cycle:
             solver->releaseVar(~activate[cycle]);
             cycle_clauses[cycle] = 0;
@@ -934,20 +921,18 @@ next:
         }
     }
 
-
-    void StepInstance::reset()
-    {
+    void StepInstance::reset() {
         if (solver != NULL) delete solver;
-        if (cl != NULL)     delete cl;
+        if (cl != NULL) delete cl;
 
         solver = new SimpSolver();
-        cl     = new Clausifyer<SimpSolver>(uc, *solver);
+        cl = new Clausifyer<SimpSolver>(uc, *solver);
 
         activate.clear();
         cycle_clauses.clear();
         inputs .clear();
         outputs.clear();
-        flops  .clear();
+        flops .clear();
 
         if (cnf_level == 0)
             solver->eliminate(true);
@@ -955,13 +940,13 @@ next:
         act_cnstrs = mkLit(solver->newVar());
         solver->freezeVar(var(act_cnstrs));
 
-        vec<Sig>       props;
+        vec<Sig> props;
         vec<vec<Sig> > cnstrs;
 
         // Unroll constraints and liveness properties:
         uc.unrollConstraints(0, cnstrs);
-        uc.unrollFlopsNext  (0, props);
-        uc.unrollLiveProps  (0, props);
+        uc.unrollFlopsNext(0, props);
+        uc.unrollLiveProps(0, props);
 
         // Unroll previous event counters:
         for (LiveProp p = 0; p < event_cnts.size(); p++)
@@ -970,7 +955,7 @@ next:
 
         // Extract inputs + flops used in unrolling:
         uc.extractUsedInputs(0, inputs);
-        uc.extractUsedFlops (0, flops);
+        uc.extractUsedFlops(0, flops);
 
         // Clausify and freeze used input variables:
         for (int i = 0; i < inputs.size(); i++)
@@ -981,13 +966,13 @@ next:
             solver->freezeVar(var(cl->clausify(flops[i])));
 
         // Clausify and freeze constraint variables:
-        if (cnstrs.size() > 0){
-            for (int i = 0; i < cnstrs.size(); i++){
+        if (cnstrs.size() > 0) {
+            for (int i = 0; i < cnstrs.size(); i++) {
                 Sig x = cnstrs[i][0];
                 Lit p = cl->clausify(x);
                 solver->freezeVar(var(p));
                 outputs.push(x);
-                for (int j = 1; j < cnstrs[i].size(); j++){
+                for (int j = 1; j < cnstrs[i].size(); j++) {
                     Sig y = cnstrs[i][j];
                     Lit q = cl->clausify(y);
                     solver->freezeVar(var(q));
@@ -996,15 +981,15 @@ next:
                     outputs.push(y);
                 }
             }
-        
-            
+
+
         }
 
         for (int i = 0; i < props.size(); i++)
             solver->freezeVar(var(cl->clausify(props[i])));
 
         // Simplify CNF:
-        if (cnf_level >= 2){
+        if (cnf_level >= 2) {
             solver->use_asymm = tip.main.nGates() < CNF_ASYMM_LIMIT;
             solver->grow = 2;
         }
@@ -1024,27 +1009,25 @@ next:
 
     }
 
-
     bool StepInstance::prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next,
-            int uncontrollable)
-    {
+            int uncontr) {
         DEB(printf("[StepInstance::prove] c = "));
         DEB(printClause(tip, c));
         DEB(printf("\n"));
         DEB(printf("[StepInstance::prove] next = "));
-        DEB( (next != NULL) ? printClause(tip, *next) : (void)printf("<null>") );
+        DEB((next != NULL) ? printClause(tip, *next) : (void) printf("<null>"));
         DEB(printf("\n"));
 
         assert(next == NULL || &c == (Clause*)&*next);
         assert(c.cycle > 0);
-        double   time_before = cpuTime();
+        double time_before = cpuTime();
         vec<Lit> assumes;
         vec<Lit> actives;
 
         // Assume proved clauses:
         if (c.cycle != cycle_Undef)
-            for (int i = c.cycle-1; i < activate.size(); i++)
-                if (activate[i] != lit_Undef){
+            for (int i = c.cycle - 1; i < activate.size(); i++)
+                if (activate[i] != lit_Undef) {
                     assumes.push(activate[i]);
                     actives.push(activate[i]);
                 }
@@ -1056,31 +1039,32 @@ next:
         sort(clause, SigActGt(flop_act));
 
         // Assume negation of clause 'c' (outgoing):
-        for (int i = 0; i < clause.size(); i++){
+        for (int i = 0; i < clause.size(); i++) {
             Sig x = tip.flps.next(gate(clause[i])) ^ sign(clause[i]);
             Lit l = cl->clausify(uc.unroll(x, 0));
             assumes.push(~l);
         }
 
-        
-        // Assume uncontrollability (outgoing?)
-        if (uncontrollable < 2) {
-        Gate firstFlopGate = tip.getFirstFlop();
-        Sig x = tip.flps.next(firstFlopGate);
-        Lit l = cl->clausify(uc.unroll(x,0));
-        if (uncontrollable == 1)
-            assumes.push(l);
-        else
-            assumes.push(~l);
+
+        // Assume uncontrollability (outgoing)
+        if (uncontr < 2) {
+            Lit l = cl->clausify(uc.unroll(tip.uncSig, 0));
+
+            DEB(printf("[StepInstance::prove] Assuming uncontr = %d\n", uncontr));
+            if (uncontr == 1) {
+                assumes.push(l);
+            } else {
+                assumes.push(~l);
+            }
         }
-        // proof of concept
+
 
         // Assume constraints:
         assumes.push(act_cnstrs);
-        
+
         // Try to satisfy clause 'c' (incoming):
         vec<Lit> cls;
-        for (unsigned i = 0; i < c.size(); i++){
+        for (unsigned i = 0; i < c.size(); i++) {
             Sig x = uc.unroll(c[i], 0);
             Lit l = cl->clausify(x);
             solver->setPolarity(var(l), lbool(!sign(l)));
@@ -1094,14 +1078,14 @@ next:
         for (int i = 0; i < cls.size(); i++)
             solver->setPolarity(var(cls[i]), l_Undef);
 
-        if (sat){
+        if (sat) {
             // Check if incoming clause was satisfied:
             bool clause_sat = false;
             for (int i = 0; i < cls.size() && !clause_sat; i++)
                 if (solver->modelValue(cls[i]) == l_True)
                     clause_sat = true;
 
-            if (!clause_sat){
+            if (!clause_sat) {
                 // Look for a new model where the clause is guaranteed to be true:
                 Lit trigg = mkLit(solver->newVar());
                 cls.push(~trigg);
@@ -1110,16 +1094,16 @@ next:
                 sat = solver->solve(assumes);
                 solver->releaseVar(~trigg);
                 // printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat);
-            }else{
+            } else {
                 // printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n");
             }
         }
         solver->extend_model = true;
 
         bool result;
-        if (sat){
+        if (sat) {
             // Found a counter-example:
-            if (next != NULL){
+            if (next != NULL) {
                 flops.clear();
 #if 1
                 for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
@@ -1135,25 +1119,29 @@ next:
 #else
                 uc.extractUsedFlops(0, flops);
 #endif
-                subModel(flops,   *cl, flops_set);
-                subModel(inputs,  *cl, inputs_set);
+                subModel(flops, *cl, flops_set);
+                subModel(inputs, *cl, inputs_set);
 
-                for (unsigned i = 0; i < c.size(); i++){
+                for (unsigned i = 0; i < c.size(); i++) {
                     Sig x = tip.flps.next(gate(c[i])) ^ sign(c[i]);
                     outputs.push(uc.lookup(x, 0));
                 }
-                
+
                 subModel(outputs, *cl, outputs_set);
                 outputs.shrink(c.size());
 
                 shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, tip.verbosity >= 4);
 
                 vec<vec<lbool> > frames;
-                vec<Sig>         clause;
+                vec<Sig> clause;
                 traceInputs(tip, inputs_set, uc, 0, frames);
                 getClause(tip, flops_set, uc, 0, clause);
+                if (uncontr == 0) {
+                    // If this is the uncontrollable case, we want to block the clause
+                    addInputsToClause(tip, inputs_set, uc, 0, clause);
+                }
 
-                SharedRef<ScheduledClause> pred(new ScheduledClause(clause, c.cycle-1, frames[0], next));
+                SharedRef<ScheduledClause> pred(new ScheduledClause(clause, c.cycle - 1, frames[0], next));
                 DEB(printf("[StepInstance::prove] pred = "));
                 DEB(printClause(tip, *pred));
                 DEB(printf("\n"));
@@ -1161,10 +1149,10 @@ next:
             }
 
             result = false;
-        }else{
+        } else {
             // Proved the clause:
             vec<Sig> subset;
-            for (unsigned i = 0; i < c.size(); i++){
+            for (unsigned i = 0; i < c.size(); i++) {
                 Sig x = tip.flps.next(gate(c[i])) ^ sign(c[i]);
                 Lit l = cl->lookup(uc.lookup(x, 0));
                 if (solver->conflict.has(l))
@@ -1173,9 +1161,9 @@ next:
             // What level was sufficient?
             unsigned k = cycle_Undef;
             if (c.cycle != cycle_Undef)
-                for (int i = c.cycle-1; i < activate.size(); i++)
-                    if (solver->conflict.has(~activate[i])){
-                        k = i+1;
+                for (int i = c.cycle - 1; i < activate.size(); i++)
+                    if (solver->conflict.has(~activate[i])) {
+                        k = i + 1;
                         break;
                     }
 
@@ -1196,35 +1184,42 @@ next:
         return result;
     }
 
-
-    bool StepInstance::prove(const Clause& c, Clause& yes, int uncontrollable)
-    {
+    bool StepInstance::prove(const Clause& c, Clause& yes, int uncontrollable) {
         SharedRef<ScheduledClause> dummy;
         return prove(c, yes, dummy, NULL, uncontrollable);
     }
 
     StepInstance::StepInstance(const TipCirc& t, const vec<vec<Clause*> >& F_, const vec<Clause*>& F_inv_, const vec<EventCounter>& event_cnts_, GMap<float>& flop_act_,
-                               int cnf_level_, uint32_t max_min_tries_)
-        : tip(t), F(F_), F_inv(F_inv_), event_cnts(event_cnts_), flop_act(flop_act_),
-          uc(t), solver(NULL), cl(NULL), act_cnstrs(lit_Undef), cpu_time(0), cnf_level(cnf_level_), max_min_tries(max_min_tries_)
-    {
+            int cnf_level_, uint32_t max_min_tries_)
+    : tip(t), F(F_), F_inv(F_inv_), event_cnts(event_cnts_), flop_act(flop_act_),
+    uc(t), solver(NULL), cl(NULL), act_cnstrs(lit_Undef), cpu_time(0), cnf_level(cnf_level_), max_min_tries(max_min_tries_) {
         reset();
     }
 
+    StepInstance::~StepInstance() {
+    }
 
-    StepInstance::~StepInstance(){ }
+    uint64_t StepInstance::props() {
+        return solver->propagations;
+    }
 
-    uint64_t StepInstance::props (){ return solver->propagations; }
-    uint64_t StepInstance::confl (){ return solver->conflicts; }
-    uint64_t StepInstance::solves(){ return solver->solves; }
-    double   StepInstance::time  (){ return cpu_time; }
+    uint64_t StepInstance::confl() {
+        return solver->conflicts;
+    }
 
-    void StepInstance::printStats()
-    {
-        printf("[step-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n", 
-               (double)solver->nFreeVars(), (double)solver->nClauses(), (double)solver->conflicts);
+    uint64_t StepInstance::solves() {
+        return solver->solves;
+    }
+
+    double StepInstance::time() {
+        return cpu_time;
+    }
+
+    void StepInstance::printStats() {
+        printf("[step-stats] vrs=%8.3g, cls=%8.3g, con=%8.3g\n",
+                (double) solver->nFreeVars(), (double) solver->nClauses(), (double) solver->conflicts);
     }
 
 
-//=================================================================================================
+    //=================================================================================================
 } // namespace Tip

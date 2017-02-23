@@ -225,6 +225,7 @@ public:
     TraceAdaptor*     tradaptor;   // Trace adaptor to compensate trace changing transformations.
 
     FILE*             resultFile;  // File to write results to, incrementally
+    Sig               uncSig;      // The Sig representing the uncontrollability bit
     
     // TODO:
     //   - fairness constraints.
@@ -239,6 +240,7 @@ public:
     void     setProvenLive   (LiveProp p, const char* engine = NULL);
     void     setFalsifiedSafe(SafeProp p, Trace, const char* engine = NULL);
     void     setFalsifiedLive(LiveProp p, Trace, const char* engine = NULL);
+    void     setUncSig       (Sig uncSig);
 
     void     extractRoots(vec<Sig>& xs);
     void     updateRoots (GMap<Sig>& cmap);
@@ -250,6 +252,7 @@ public:
     int           verbosity;
     
     Gate getFirstFlop () const { return flps[0]; };
+    Gate getSecondFlop () const { return flps[1]; };
 
  private:
 
