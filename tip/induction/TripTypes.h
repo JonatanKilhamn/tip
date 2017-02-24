@@ -277,9 +277,9 @@ namespace Tip {
             printf("%d", tip.main.number(gate(c[i])));
         }
         if (c.cycle == cycle_Undef)
-            printf(" }@inv");
+            printf(" }@inv\n");
         else
-            printf(" }@%d", c.cycle);
+            printf(" }@%d\n", c.cycle);
     }
     
     inline void printClause(const TipCirc& tip, const ScheduledClause& sc)
@@ -303,9 +303,9 @@ namespace Tip {
             printf("%d", tip.main.number(gate(sc[i])));
         }
         if (sc.cycle == cycle_Undef)
-            printf(" }@inv");
+            printf(" }@inv\n");
         else
-            printf(" }@%d", sc.cycle);
+            printf(" }@%d\n", sc.cycle);
 
     }
 

@@ -41,7 +41,6 @@ namespace Tip {
             printf("%s", prefix);
             Clause tmp(xs, cycle);
             printClause(tip, tmp);
-            printf("\n");
         }
 
         struct SigLitPair {
@@ -371,7 +370,8 @@ namespace Tip {
     }
 
     bool InitInstance::prove(const Clause& c_, const Clause& bot,
-            Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next) {
+            Clause& yes, int uncontr, SharedRef<ScheduledClause>& no,
+            SharedRef<ScheduledClause> next) {
         assert(next == NULL || &c_ == (Clause*)&*next);
         assert(subsumes(bot, c_));
 
@@ -402,6 +402,17 @@ namespace Tip {
             assumes.push(~l);
         }
 
+        // Assume uncontrollability (outgoing)
+        if (uncontr < 2) {
+            Lit l = cl->clausify(uc.unroll(tip.uncSig, 0));
+
+            DEB(printf("[InitInstance::prove] Assuming uncontr = %d\n", uncontr));
+            if (uncontr == 1) {
+                assumes.push(l);
+            } else {
+                assumes.push(~l);
+            }
+        }
 
         if (next == NULL)
             solver->extend_model = false;
@@ -409,9 +420,8 @@ namespace Tip {
         bool sat;
         bool bad_model;
         do {
-            // printf("[InitInstance::prove] cand = ");
-            // printSigs(cand);
-            // printf("\n");
+            printf("[InitInstance::prove] cand = ");
+            printSigs(cand);
             bad_model = false;
             sat = solver->solve(assumes);
             if (sat)
@@ -428,6 +438,7 @@ namespace Tip {
         } while (bad_model);
 
         if (sat) {
+            printf("[InitInstance::prove] Found counterexample\n");
             // Found a counter-example:
             if (next != NULL) {
                 subModel(inputs, *cl, inputs_set);
@@ -442,7 +453,7 @@ namespace Tip {
         } else {
             assert(solver->conflict.size() > 0);
             // Proved the clause:
-
+            printf("[InitInstance::prove] Proved the clause\n");
             vec<Sig> subset;
             for (int i = 0; i < cand.size(); i++) {
                 Sig x = uc.unroll(cand[i], 0);
@@ -461,9 +472,9 @@ namespace Tip {
         return result;
     }
 
-    bool InitInstance::prove(const Clause& c, const Clause& bot, Clause& yes) {
+    bool InitInstance::prove(const Clause& c, const Clause& bot, Clause& yes, int uncontr) {
         SharedRef<ScheduledClause> dummy;
-        return prove(c, bot, yes, dummy);
+        return prove(c, bot, yes, uncontr, dummy);
     }
 
     InitInstance::InitInstance(const TipCirc& t, int cnf_level_)
@@ -513,7 +524,6 @@ namespace Tip {
     void PropInstance::addClause(const Clause& c) {
         // printf("[PropInstance::addClause] c = ");
         // printClause(tip, c);
-        // printf("\n");
 
         vec<Lit> xs;
         if (c.cycle != cycle_Undef)
@@ -574,7 +584,6 @@ namespace Tip {
                 }
                 // printf("[reset] %d reachable in cycle %d: ", needed_flops.last().size(), i);
                 // printSigs(needed_flops.last());
-                // printf("\n");
             }
 
             SSet front;
@@ -657,10 +666,14 @@ namespace Tip {
         double time_before = cpuTime();
         vec<Lit> assumps;
         lbool result;
-
+        
+        //DEB(printf("[PropInstance::prove] uc at start:\n"));
+        //DEB(uc.dump());
+        
         // Assume uncontrollability (outgoing)
         if (uncontr < 2) {
             Lit l = cl->clausify(uc.unroll(tip.uncSig, depth()));
+            DEB(printf("[PropInstance::prove] gate(uncSig).x=%u and l.x=%u\n",gate(tip.uncSig).x,l.x));
 
             DEB(printf("[PropInstance::prove] Assuming uncontr = %d\n", uncontr));
             if (uncontr == 1) {
@@ -674,17 +687,13 @@ namespace Tip {
         Lit l = cl->clausify(uc.unroll(p, depth()));
 
         /*DEB(printf("Safety at depth: %d; ", l.x));
-        tip.printSig(p);
-        DEB(printf("\n"));*/
+        tip.printSig(p);*/
 
         assumps.push(~l);
 
         assumps.push(act_cnstrs);
         assumps.push(act_cycle);
-        /*for (int i = 0; i<assumps.size(); i++) {
-            Lit la = assumps[i];
-            DEB(printf("[Assumps] %d\n", la.x));
-        }*/
+
         // don't push anything after this, since we do a pop() later on and
         // want that to pop act_cycle
 
@@ -714,7 +723,6 @@ next:
                 DEB(tip.printSig(mkSig(*flit)));
                 DEB(printf("; .next %u alt. ", tip.flps.next(*flit)));
                 DEB(tip.printSig(tip.flps.next(*flit)));
-                DEB(printf("\n"));
                 counter++;*/
 
                 /*uint32_t i = tip.main.number(gate(mkSig(*flit)));
@@ -815,7 +823,6 @@ next:
             DEB(printClause(tip, *pred));
             //DEB( (testScheduledClause != NULL) ? printClause(tip, *testScheduledClause) : (void)printf("<null>") );
             //DEB(cout << frames);
-            DEB(printf("\n"));
 
             no = pred;
             result = l_False;
@@ -941,6 +948,7 @@ next:
         uc.unrollConstraints(0, cnstrs);
         uc.unrollFlopsNext(0, props);
         uc.unrollLiveProps(0, props);
+        uc.unrollSafeProps(0, props);
 
         // Unroll previous event counters:
         for (LiveProp p = 0; p < event_cnts.size(); p++)
@@ -1007,11 +1015,10 @@ next:
             int uncontr) {
         DEB(printf("[StepInstance::prove] c = "));
         DEB(printClause(tip, c));
-        DEB(printf("\n"));
         DEB(printf("[StepInstance::prove] next = "));
-        DEB((next != NULL) ? printClause(tip, *next) : (void) printf("<null>"));
-        DEB(printf("\n"));
+        DEB((next != NULL) ? printClause(tip, *next) : (void) printf("<null>\n"));
 
+                
         assert(next == NULL || &c == (Clause*)&*next);
         assert(c.cycle > 0);
         double time_before = cpuTime();
@@ -1039,22 +1046,24 @@ next:
             assumes.push(~l);
         }
 
+        // Assume constraints:
+        assumes.push(act_cnstrs);
 
-        // Assume uncontrollability (outgoing)
+                // Assume uncontrollability (outgoing)
         if (uncontr < 2) {
-            Lit l = cl->clausify(uc.unroll(tip.uncSig, 0));
-
+            //DEB(printf("[StepInstance::prove] uc at start:\n"));
+            //DEB(uc.dump());
+            Sig x = tip.uncSig;//tip.flps.next(gate(tip.uncSig)) ^ sign(tip.uncSig);
+            Lit l = cl->clausify(uc.unroll(x, 0));
+            //DEB(printf("[StepInstance::prove] uncSig.x=%u and l.x=%u\n",tip.uncSig.x,l.x));            
             DEB(printf("[StepInstance::prove] Assuming uncontr = %d\n", uncontr));
+
             if (uncontr == 1) {
-                assumes.push(l);
+                assumes.push(l);//By theory it should be l here and ~l in else{}
             } else {
                 assumes.push(~l);
             }
         }
-
-
-        // Assume constraints:
-        assumes.push(act_cnstrs);
 
         // Try to satisfy clause 'c' (incoming):
         vec<Lit> cls;
@@ -1067,7 +1076,7 @@ next:
 
         if (next == NULL) solver->extend_model = false;
         bool sat = solver->solve(assumes);
-
+        
         // Undo polarity preference:
         for (int i = 0; i < cls.size(); i++)
             solver->setPolarity(var(cls[i]), l_Undef);
@@ -1087,22 +1096,22 @@ next:
                 assumes.push(trigg);
                 sat = solver->solve(assumes);
                 solver->releaseVar(~trigg);
-                // printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat);
+                printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat);
             } else {
-                // printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n");
+                printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n");
             }
         }
         solver->extend_model = true;
 
         bool result;
         if (sat) {
+            printf("sat\n");
             // Found a counter-example:
             if (next != NULL) {
                 flops.clear();
 #if 1
                 for (TipCirc::FlopIt flit = tip.flpsBegin(); flit != tip.flpsEnd(); ++flit)
                     if (uc.lookup(*flit, 0) != sig_Undef) {
-                        // This is an interesting place – what happens here?
                         flops.push(mkSig(*flit));
                     }
 
@@ -1138,12 +1147,14 @@ next:
                 SharedRef<ScheduledClause> pred(new ScheduledClause(clause, c.cycle - 1, frames[0], next));
                 DEB(printf("[StepInstance::prove] pred = "));
                 DEB(printClause(tip, *pred));
-                DEB(printf("\n"));
                 no = pred;
+            } else {
+                printf("pred = null\n");
             }
 
             result = false;
         } else {
+            printf("unsat\n");
             // Proved the clause:
             vec<Sig> subset;
             for (unsigned i = 0; i < c.size(); i++) {
@@ -1174,7 +1185,7 @@ next:
         }
         cpu_time += cpuTime() - time_before;
 
-        //DEB(printf("[StepInstance::prove] result = %d\n",result));
+        DEB(printf("[StepInstance::prove] result = %d\n",result));
         return result;
     }
 

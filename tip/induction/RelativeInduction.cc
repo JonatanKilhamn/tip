@@ -389,23 +389,29 @@ namespace Tip {
             
             DEB(printf("[proveAndGeneralize] c = "));
             DEB(printClause(*c));
-            DEB(printf("\n"));
 
             Clause yes_init, yes_step;
             if (c->cycle == 0){
                 Clause empty;
                 printf("[proveAndGeneralize] cycle-0:\n");
-                if (!init.prove(*c, empty, yes_init, no, c))
+                if (!init.prove(*c, empty, yes_init, uncontr, no, c)) {
                     return false;
+                }
+                DEB(printf("[proveAndGeneralise] After init.prove: init_step = "));
+                DEB(printClause(yes_step));
                 generalizeInit(yes_init);
                 yes_step = yes_init;
             }else{
                 DEB(printf("first step.prove\n"));
                 if (!step.prove(*c, yes_step, no, c, uncontr))
                     return false;
+                DEB(printf("[proveAndGeneralise] After step.prove: yes_step = "));
+                DEB(printClause(yes_step));
 
                 //check(proveInit(*c, yes_init));
                 check(init.prove(*c, yes_step, yes_init));
+                //DEB(printf("[proveAndGeneralise] After init.prove: yes_step = "));
+                //DEB(printClause(yes_init));
 
                 assert(subsumes(yes_step, yes_init));
                 yes_step = yes_init;
@@ -417,7 +423,11 @@ namespace Tip {
 #endif
             }
             
+            
+            
             DEB(printf("[proveAndGeneralise] After generalisation\n"));
+            DEB(printf("[proveAndGeneralise] yes_step = "));
+            DEB(printClause(yes_step));
 
             // Check if clause is already inductive:
             if (yes_step.cycle != cycle_Undef){
@@ -426,7 +436,7 @@ namespace Tip {
                 inf.cycle = cycle_Undef;
                 int uncontrollable=2;
                 if (step.prove(inf, yes_step, uncontrollable)){
-                    check(init.prove(inf, yes_step, yes_init));
+                    check(init.prove(inf, yes_step, yes_init, uncontrollable));
                     assert(subsumes(yes_step, yes_init));
                     yes_step = yes_init;
                     DEB(printf("[proveAndGeneralise] It was inductive\n"));                    
@@ -434,17 +444,21 @@ namespace Tip {
             }
 
             // Push clause forwards as much as possible:
-            while (yes_step.cycle < size()){
-                DEB(printf("[proveAndGeneralise] Pushing forwards\n"));
+            while (yes_step.cycle < size()) {
+                //printf("Inside the forwarding loop, cycle=%d\n",yes_step.cycle);                
+                //DEB(printf("[proveAndGeneralise] Pushing forwards\n"));
                 Clause d = yes_step;
                 d.cycle++;
+                //printf("yes_step.cycle=%d; d.cycle=%d\n",yes_step.cycle,d.cycle);                
                 int uncontrollable=2;
                 if (!step.prove(d, yes_step, uncontrollable))
                     break;
-                check(init.prove(d, yes_step, yes_init));
+                check(init.prove(d, yes_step, yes_init, uncontrollable));
                 assert(subsumes(yes_step, yes_init));
                 yes_step = yes_init;
+                //printf("yes_step.cycle=%d; yes_init.cycle=%d\n",yes_step.cycle,yes_init.cycle);                
             }
+            //DEB(printf("Outside the forwarding loop\n"));
 
 #ifndef GENERALIZE_THEN_PUSH
             if (yes_step.cycle > 0)
@@ -471,7 +485,7 @@ namespace Tip {
                        c.cycle, yes_step.cycle);
 
             //check(proveInit(c, yes_init));
-            check(init.prove(c, yes_step, yes_init));
+            check(init.prove(c, yes_step, yes_init, uncontr));
 
             // Calculate union of the two strengthened clauses:
             yes = yes_init + yes_step;
@@ -744,7 +758,6 @@ namespace Tip {
 
             DEB(printf("[addClause] c = "));
             DEB(printClause(c));
-            DEB(printf("\n"));
             //DEB(printf("Is null: %d\n", &c_ == NULL));
             assert(!fwdSubsumed(&c_));
             n_total++;
@@ -893,10 +906,8 @@ namespace Tip {
                             printf("[bwdSubsume] spurious subsumption\n");
                             printf("[bwdSubsume] c = ");
                             printClause(*c);
-                            printf("\n");
                             printf("[bwdSubsume] d = ");
                             printClause(*occ[i]);
-                            printf("\n");
                             assert(false);
                         }
                         inv_found = true;
@@ -915,7 +926,6 @@ namespace Tip {
                     const Clause& c = *F_inv[i];
                     printf(" >> ");
                     printClause(c);
-                    printf("\n");
                 }
         }
 
@@ -1128,34 +1138,35 @@ namespace Tip {
 
                     DEB(printf("[proveRec] sc = "));
                     DEB(printClause(*sc));
-                    DEB(printf("\n"));
                     if (proveAndGeneralize(sc, minimized, pred, uncontr)) {
-                        DEB(printf("[proveRec] returned from proveAndGeneralize; uncontr = %d\n",uncontr));
-                        if ((iters++ % 10) == 0) printStats(sc->cycle, false);
+                        DEB(printf("[proveRec] Proved the clause with uncontr = %d\n", uncontr));
+                        if (uncontr == 1) {
+                            if ((iters++ % 10) == 0) printStats(sc->cycle, false);
 
-                        cls_total_size += minimized.size();
-                        cls_total_before += sc->size();
-                        cls_total_removed += sc->size() - minimized.size();
-                        cnt++;
+                            cls_total_size += minimized.size();
+                            cls_total_before += sc->size();
+                            cls_total_removed += sc->size() - minimized.size();
+                            cnt++;
 
-                        if (bound > 0) {
-                            // Handle restarts:
-                            if (restart_cnt == bound) {
-                                // printf("[proveRec] restart (bound = %d)\n", bound);
-                                luby_index++;
-                                restart_cnt = 0;
-                                clause_queue.clear();
-                                return true;
-                            } else
-                                restart_cnt++;
-                        }
+                            if (bound > 0) {
+                                // Handle restarts:
+                                if (restart_cnt == bound) {
+                                    // printf("[proveRec] restart (bound = %d)\n", bound);
+                                    luby_index++;
+                                    restart_cnt = 0;
+                                    clause_queue.clear();
+                                    return true;
+                                } else
+                                    restart_cnt++;
+                            }
 
-                        if (addClause(minimized)) {
-                            DEB(printf("[proveRec] extractInvariant:\n"));
-                            extractInvariant();
-                        } else if (fwd_inst && minimized.cycle != cycle_Undef && minimized.cycle + 1 <= safe_depth + 1) {
-                            sc->cycle = minimized.cycle + 1;
-                            enqueueClause(sc);
+                            if (addClause(minimized)) {
+                                DEB(printf("[proveRec] extractInvariant:\n"));
+                                extractInvariant();
+                            } else if (fwd_inst && minimized.cycle != cycle_Undef && minimized.cycle + 1 <= safe_depth + 1) {
+                                sc->cycle = minimized.cycle + 1;
+                                enqueueClause(sc);
+                            }
                         }
                     } else if (sc->cycle == 0)
                         return false;
@@ -1165,19 +1176,17 @@ namespace Tip {
                             Clause empty;
                             empty.cycle = cycle_Undef;
                             Clause slask;
-                            assert(init.prove(*pred, empty, slask));
+                            assert(init.prove(*pred, empty, slask, uncontr));
                         }
 
                         if (uncontr == 0) {
                             DEB(printf("[proveRec] Blocking pred. clause:\n"));
                             DEB(printClause(*pred));
-                            DEB(printf("\n"));
                             blockClause(pred);
                             enqueueClause(sc);
                         } else {
                             DEB(printf("[proveRec] Enqeueing pred. clause:\n"));
                             DEB(printClause(*pred));
-                            DEB(printf("\n"));
                             cands_added++;
                             cands_total_size += pred->size();
                             cands_total_removed += tip.flps.size() - pred->size();
@@ -1213,6 +1222,8 @@ namespace Tip {
             Sig uncSig = tip.safe_props[0].sig;
             //tip.setUncSig(uncSig);
             tip.setUncSig(uncSig);
+            //tip.printCirc();
+            
             for (SafeProp p = 1; p < tip.safe_props.size(); p++)
                 if (tip.safe_props[p].stat == pstat_Unknown){
                     lbool prop_res = l_False;
@@ -1405,7 +1416,6 @@ namespace Tip {
             printf("Blocked Clauses:\n");
             for (int i = 0; i < blockedClauses.size(); i++) {
                 printClause(*blockedClauses[i]);
-                printf("\n");
             }
         }
 

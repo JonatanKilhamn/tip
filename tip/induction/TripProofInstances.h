@@ -130,8 +130,8 @@ namespace Tip {
         InitInstance(const TipCirc& t_, int cnf_level_);
         ~InitInstance();
         
-        bool prove(const Clause& c, const Clause& bot, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL);
-        bool prove(const Clause& c, const Clause& bot, Clause& yes);
+        bool prove(const Clause& c, const Clause& bot, Clause& yes, int uncontr, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL);
+        bool prove(const Clause& c, const Clause& bot, Clause& yes, int uncontr=2);
 
         void reduceClause(Clause& c);
 
