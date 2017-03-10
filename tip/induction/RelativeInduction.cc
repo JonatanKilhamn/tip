@@ -24,6 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "tip/induction/TripProofInstances.h"
 #include "tip/liveness/EmbedFairness.h"
 #include "tip/unroll/Bmc.h"
+#include <stdio.h>
 
 #define GENERALIZE_THEN_PUSH
 //#define VERIFY_SUBSUMPTION
@@ -96,6 +97,7 @@ namespace Tip {
             vec<EventCounter>    event_cnts;
 
             // Solver data: Should be rederivable from only independent data at any time:
+            
             InitInstance         init;
             PropInstance         prop;
             StepInstance         step;
@@ -215,6 +217,7 @@ namespace Tip {
         public:
 
             void             printInvariant  ();
+            void             writeInvariant  ();
             void             verifyInvariant ();
 
             Trip(TipCirc& t, unsigned prop_depth, bool start_at_depth_zero)
@@ -393,7 +396,7 @@ namespace Tip {
             Clause yes_init, yes_step;
             if (c->cycle == 0){
                 Clause empty;
-                printf("[proveAndGeneralize] cycle-0:\n");
+                DEB(printf("[proveAndGeneralize] cycle-0:\n"));
                 if (!init.prove(*c, empty, yes_init, uncontr, no, c)) {
                     return false;
                 }
@@ -445,18 +448,18 @@ namespace Tip {
 
             // Push clause forwards as much as possible:
             while (yes_step.cycle < size()) {
-                //printf("Inside the forwarding loop, cycle=%d\n",yes_step.cycle);                
+                //DEB(printf("Inside the forwarding loop, cycle=%d\n",yes_step.cycle));                
                 //DEB(printf("[proveAndGeneralise] Pushing forwards\n"));
                 Clause d = yes_step;
                 d.cycle++;
-                //printf("yes_step.cycle=%d; d.cycle=%d\n",yes_step.cycle,d.cycle);                
+                //DEB(printf("yes_step.cycle=%d; d.cycle=%d\n",yes_step.cycle,d.cycle));                
                 int uncontrollable=2;
                 if (!step.prove(d, yes_step, uncontrollable))
                     break;
                 check(init.prove(d, yes_step, yes_init, uncontrollable));
                 assert(subsumes(yes_step, yes_init));
                 yes_step = yes_init;
-                //printf("yes_step.cycle=%d; yes_init.cycle=%d\n",yes_step.cycle,yes_init.cycle);                
+                //DEB(printf("yes_step.cycle=%d; yes_init.cycle=%d\n",yes_step.cycle,yes_init.cycle));                
             }
             //DEB(printf("Outside the forwarding loop\n"));
 
@@ -903,10 +906,10 @@ namespace Tip {
                     cls_bwdsub++;
                     if (removeClause(occ[i])){
                         if (verify){
-                            printf("[bwdSubsume] spurious subsumption\n");
-                            printf("[bwdSubsume] c = ");
+                            DEB(printf("[bwdSubsume] spurious subsumption\n"));
+                            DEB(printf("[bwdSubsume] c = "));
                             printClause(*c);
-                            printf("[bwdSubsume] d = ");
+                            DEB(printf("[bwdSubsume] d = "));
                             printClause(*occ[i]);
                             assert(false);
                         }
@@ -928,6 +931,32 @@ namespace Tip {
                     printClause(c);
                 }
         }
+        
+        
+        void Trip::writeInvariant()
+        {
+            
+            FILE * myfile;
+            myfile = fopen ("../../output.txt","w");
+            for (int i = 0; i < F_inv.size(); i++)
+                if (F_inv[i]->isActive()) {
+                    const Clause& c = *F_inv[i];
+                    if (c.cycle == cycle_Undef)
+                        for (unsigned i = 0; i < c.size(); i++) {
+                            if (i > 0) fprintf(myfile,",");
+                            if (sign(c[i])) fprintf(myfile,"~");
+                            if (tip.flps.isFlop(gate(c[i])))
+                                fprintf(myfile,"f");
+                            else if (type(c[i]) == gtype_Inp)
+                                fprintf(myfile,"i");
+                            else
+                                assert(false);
+                            fprintf(myfile,"%u", tip.main.number(gate(c[i])));
+                        }
+                    fprintf(myfile,"\n");
+                }
+            fclose(myfile);
+        }        
 
 
         void Trip::verifyInvariant()
@@ -986,7 +1015,7 @@ namespace Tip {
             if (num_failed > 0){
                 printf("WARNING! %d clauses are not implied by the candidate invariant.\n", num_failed);
                 exit(211); }
-            //printf("[verifyInvariant] invariant checked (step) cpu-time = %.2f s\n", cpuTime() - time_before);
+            //DEB(printf("[verifyInvariant] invariant checked (step) cpu-time = %.2f s\n", cpuTime() - time_before));
 
             // Verify that properties are implied by the invariant:
             num_failed = 0;
@@ -1000,7 +1029,7 @@ namespace Tip {
             if (num_failed > 0){
                 printf("WARNING! %d properties are not implied by the candidate invariant.\n", num_failed);
                 exit(212); }
-            //printf("[verifyInvariant] properties checked cpu-time = %.2f s\n", cpuTime() - time_before);
+            //DEB(printf("[verifyInvariant] properties checked cpu-time = %.2f s\n", cpuTime() - time_before));
 
             // Clausify-connect cycle 0 to the initial circuit:
             for (int i = 0; i < tip.flps.size(); i++)
@@ -1019,7 +1048,7 @@ namespace Tip {
                 if (s.solve(cs))
                     num_failed++;
             }
-            // printf("[verifyInvariant] invariant checked (base) cpu-time = %.2f s\n", cpuTime() - time_before);
+            // DEB(printf("[verifyInvariant] invariant checked (base) cpu-time = %.2f s\n", cpuTime() - time_before));
 
             if (num_failed > 0){
                 printf("WARNING! %d clauses not true in cycle 1.\n", num_failed);
@@ -1282,7 +1311,7 @@ namespace Tip {
                             cands_total_removed += tip.flps.size() - pred->size();
                             if (!proveRec(pred, start)){
                                 // 'p' was falsified.
-                                printf("[decideCycle] event counter for liveness property %d reached %d\n", p, event_cnts[p].k);
+                                DEB("[decideCycle] event counter for liveness property %d reached %d\n", p, event_cnts[p].k));
 
                                 // vec<vec<lbool> > frames;
                                 // extractTrace(start, frames);
@@ -1315,7 +1344,7 @@ namespace Tip {
                 // At this point we know that all remaining properties are implied in cycle k+1. Expand
                 // a new frame and push clauses forward as much as possible:
                 safe_depth++;
-                printf("[decideCycle] entering pushClauses\n");
+                DEB(printf("[decideCycle] entering pushClauses\n"));
                 pushClauses();
                 prop.clearClauses(safe_depth+1);
                 result = false;
@@ -1413,9 +1442,9 @@ namespace Tip {
             
             printf("\n");
             printf("\n");
-            printf("Blocked Clauses:\n");
+            DEB(printf("Blocked Clauses:\n"));
             for (int i = 0; i < blockedClauses.size(); i++) {
-                printClause(*blockedClauses[i]);
+                DEB(printClause(*blockedClauses[i]));
             }
         }
 
@@ -1481,7 +1510,7 @@ namespace Tip {
         }
 
         while (!trip.decideCycle()){
-            printf("[relativeInduction] decided one cycle\n");
+            DEB(printf("[relativeInduction] decided one cycle\n"));
 
             trip.printStats();
 
@@ -1513,6 +1542,7 @@ namespace Tip {
 
         double total_time = cpuTime() - time_before;
         trip.printFinalStats();
+        trip.writeInvariant();
         printf("\n");
         printf("CPU-time:\n");
         printf("  Rip:   %.2f s\n", trip.time());

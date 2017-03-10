@@ -420,8 +420,8 @@ namespace Tip {
         bool sat;
         bool bad_model;
         do {
-            printf("[InitInstance::prove] cand = ");
-            printSigs(cand);
+            DEB(printf("[InitInstance::prove] cand = "));
+            DEB(printSigs(cand));
             bad_model = false;
             sat = solver->solve(assumes);
             if (sat)
@@ -438,7 +438,7 @@ namespace Tip {
         } while (bad_model);
 
         if (sat) {
-            printf("[InitInstance::prove] Found counterexample\n");
+            DEB(printf("[InitInstance::prove] Found counterexample\n"));
             // Found a counter-example:
             if (next != NULL) {
                 subModel(inputs, *cl, inputs_set);
@@ -453,7 +453,7 @@ namespace Tip {
         } else {
             assert(solver->conflict.size() > 0);
             // Proved the clause:
-            printf("[InitInstance::prove] Proved the clause\n");
+            DEB(printf("[InitInstance::prove] Proved the clause\n"));
             vec<Sig> subset;
             for (int i = 0; i < cand.size(); i++) {
                 Sig x = uc.unroll(cand[i], 0);
@@ -1096,16 +1096,16 @@ next:
                 assumes.push(trigg);
                 sat = solver->solve(assumes);
                 solver->releaseVar(~trigg);
-                printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat);
+                DEB(printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat));
             } else {
-                printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n");
+                DEB(printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n"));
             }
         }
         solver->extend_model = true;
 
         bool result;
         if (sat) {
-            printf("sat\n");
+            DEB(printf("sat\n"));
             // Found a counter-example:
             if (next != NULL) {
                 flops.clear();
@@ -1133,7 +1133,7 @@ next:
                 subModel(outputs, *cl, outputs_set);
                 outputs.shrink(c.size());
 
-                shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, tip.verbosity >= 4);
+                shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, tip.verbosity >= 6);
 
                 vec<vec<lbool> > frames;
                 vec<Sig> clause;
@@ -1149,12 +1149,12 @@ next:
                 DEB(printClause(tip, *pred));
                 no = pred;
             } else {
-                printf("pred = null\n");
+                DEB(printf("pred = null\n"));
             }
 
             result = false;
         } else {
-            printf("unsat\n");
+            DEB(printf("unsat\n"));
             // Proved the clause:
             vec<Sig> subset;
             for (unsigned i = 0; i < c.size(); i++) {
