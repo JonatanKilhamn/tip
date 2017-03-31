@@ -783,14 +783,6 @@ next:
             shrinkModel(*solver, *cl, inputs_set, flops_set, outputs_set, max_min_tries, false);
 
 
-            /*vec<Sig>         testClause;
-            vec<lbool>       noInps;
-            testClause.clear();
-            noInps.clear();
-            testClause.push(uc.unroll(p, depth()));
-            SharedRef<ScheduledClause> testScheduledClause(NULL);
-            testScheduledClause = SharedRef<ScheduledClause>(new ScheduledClause(testClause, cycle, noInps, testScheduledClause));
-             */
 
             vec<vec<lbool> > frames;
             vec<Sig> clause;

@@ -349,6 +349,7 @@ namespace Tip {
                 if (find(d, elem)){
                     Clause cand = d - elem;
                     cls_generalizations++;
+                    // TODO: what's up here? How do we generalize this? Should we care about controllability here?
                     if (step.prove(cand, e) && init.prove(cand, e, d)){
                         reset = index;
                         i     = 0;
@@ -400,7 +401,7 @@ namespace Tip {
                 if (!init.prove(*c, empty, yes_init, uncontr, no, c)) {
                     return false;
                 }
-                DEB(printf("[proveAndGeneralise] After init.prove: init_step = "));
+                DEB(printf("[proveAndGeneralize] After init.prove: init_step = "));
                 DEB(printClause(yes_step));
                 generalizeInit(yes_init);
                 yes_step = yes_init;
@@ -408,12 +409,12 @@ namespace Tip {
                 DEB(printf("first step.prove\n"));
                 if (!step.prove(*c, yes_step, no, c, uncontr))
                     return false;
-                DEB(printf("[proveAndGeneralise] After step.prove: yes_step = "));
+                DEB(printf("[proveAndGeneralize] After step.prove: yes_step = "));
                 DEB(printClause(yes_step));
 
                 //check(proveInit(*c, yes_init));
                 check(init.prove(*c, yes_step, yes_init));
-                //DEB(printf("[proveAndGeneralise] After init.prove: yes_step = "));
+                //DEB(printf("[proveAndGeneralize] After init.prove: yes_step = "));
                 //DEB(printClause(yes_init));
 
                 assert(subsumes(yes_step, yes_init));
@@ -428,13 +429,13 @@ namespace Tip {
             
             
             
-            DEB(printf("[proveAndGeneralise] After generalisation\n"));
-            DEB(printf("[proveAndGeneralise] yes_step = "));
+            DEB(printf("[proveAndGeneralize] After generalisation\n"));
+            DEB(printf("[proveAndGeneralize] yes_step = "));
             DEB(printClause(yes_step));
 
             // Check if clause is already inductive:
             if (yes_step.cycle != cycle_Undef){
-                DEB(printf("[proveAndGeneralise] Checking for inductive\n"));
+                DEB(printf("[proveAndGeneralize] Checking for inductive\n"));
                 Clause inf = yes_step;
                 inf.cycle = cycle_Undef;
                 int uncontrollable=2;
@@ -442,14 +443,14 @@ namespace Tip {
                     check(init.prove(inf, yes_step, yes_init, uncontrollable));
                     assert(subsumes(yes_step, yes_init));
                     yes_step = yes_init;
-                    DEB(printf("[proveAndGeneralise] It was inductive\n"));                    
+                    DEB(printf("[proveAndGeneralize] It was inductive\n"));                    
                 }
             }
 
             // Push clause forwards as much as possible:
             while (yes_step.cycle < size()) {
                 //DEB(printf("Inside the forwarding loop, cycle=%d\n",yes_step.cycle));                
-                //DEB(printf("[proveAndGeneralise] Pushing forwards\n"));
+                //DEB(printf("[proveAndGeneralize] Pushing forwards\n"));
                 Clause d = yes_step;
                 d.cycle++;
                 //DEB(printf("yes_step.cycle=%d; d.cycle=%d\n",yes_step.cycle,d.cycle));                
@@ -958,7 +959,6 @@ namespace Tip {
             fclose(myfile);
         }        
 
-
         void Trip::verifyInvariant()
         {
             double time_before = cpuTime();
@@ -1261,7 +1261,7 @@ namespace Tip {
                         int uncontr = 0;
                         prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False) {
-                            //TODO: generalise these clauses somehow.
+                            //TODO: generalize these clauses somehow.
                             blockClause(pred);
                         }
                     } while (prop_res == l_False);
