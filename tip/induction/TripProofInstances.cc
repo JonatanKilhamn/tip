@@ -168,14 +168,14 @@ namespace Tip {
                 xs.shrink(j - k);
 
                 if (xs.size() < size_before) {
-                    if (verbose) printf(".%d", xs.size());
+                    DEB(if (verbose) printf(".%d", xs.size()));
                 } else {
                     fails++;
-                    if (verbose) printf("x");
+                    DEB(if (verbose) printf("x"));
                 }
 
             }
-            if (verbose) printf("\n");
+            DEB(if (verbose) printf("\n"));
 
             s.releaseVar(~trigg);
         }

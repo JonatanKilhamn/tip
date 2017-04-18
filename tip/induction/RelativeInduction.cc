@@ -353,13 +353,14 @@ namespace Tip {
                     if (step.prove(cand, e) && init.prove(cand, e, d)){
                         reset = index;
                         i     = 0;
-                        if (tip.verbosity >= 4) printf(".%d", d.size());
+                        //if (tip.verbosity >= 4) printf(".%d", d.size());
                         assert(subsumes(d, cand));
-                    }else
-                        if (tip.verbosity >= 4) printf(".");
+                    } else {
+                        //if (tip.verbosity >= 4) printf(".");
+                    }
                 }
             }
-            if (tip.verbosity >= 4) printf("\n");
+            //if (tip.verbosity >= 4) printf("\n");
             
             assert(subsumes(d, c));
             c = d;
@@ -420,7 +421,7 @@ namespace Tip {
                 assert(subsumes(yes_step, yes_init));
                 yes_step = yes_init;
 
-                if (tip.verbosity >= 4) printf("[generalize] %d.%d\n", c->size(), yes_step.size());
+                //if (tip.verbosity >= 4) printf("[generalize] %d.%d\n", c->size(), yes_step.size());
 
 #ifdef GENERALIZE_THEN_PUSH
                 generalize(yes_step);
