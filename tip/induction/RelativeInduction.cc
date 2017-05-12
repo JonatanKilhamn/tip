@@ -145,7 +145,7 @@ namespace Tip {
             void             scheduleGeneralizeOrder(const Clause& c, vec<Sig>& try_remove);
 
             // Find a maximal generalization of c that still is subsumed by init.
-            void             generalize(Clause& c);
+            void             generalize(Clause& c, int uncontr = 2);
 
             // Find a maximal generalization of c that holds in initial states.
             void             generalizeInit(Clause& c);
@@ -332,7 +332,7 @@ namespace Tip {
             sort(try_remove, SigActLt(flop_act));
         }
 
-        void Trip::generalize(Clause& c)
+        void Trip::generalize(Clause& c, int uncontr)
         {
             vec<Sig> try_remove;
             Clause   d = c;
@@ -349,8 +349,8 @@ namespace Tip {
                 if (find(d, elem)){
                     Clause cand = d - elem;
                     cls_generalizations++;
-                    // TODO: what's up here? How do we generalize this? Should we care about controllability here?
-                    if (step.prove(cand, e) && init.prove(cand, e, d)){
+                    
+                    if (step.prove(cand, e, uncontr) && init.prove(cand, e, d)){
                         reset = index;
                         i     = 0;
                         //if (tip.verbosity >= 4) printf(".%d", d.size());
@@ -424,7 +424,7 @@ namespace Tip {
                 //if (tip.verbosity >= 4) printf("[generalize] %d.%d\n", c->size(), yes_step.size());
 
 #ifdef GENERALIZE_THEN_PUSH
-                generalize(yes_step);
+                generalize(yes_step, uncontr);
 #endif
             }
             
@@ -467,7 +467,7 @@ namespace Tip {
 
 #ifndef GENERALIZE_THEN_PUSH
             if (yes_step.cycle > 0)
-                generalize(yes_step);
+                generalize(yes_step, uncontr);
 #endif
 
             yes = yes_step;
@@ -1263,6 +1263,7 @@ namespace Tip {
                         prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False) {
                             //TODO: generalize these clauses somehow.
+                            //generalize((Clause&)*pred, uncontr); //doesn't work, generalize() uses step.prove
                             blockClause(pred);
                         }
                     } while (prop_res == l_False);

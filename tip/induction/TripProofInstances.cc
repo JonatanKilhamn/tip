@@ -1051,7 +1051,7 @@ next:
             DEB(printf("[StepInstance::prove] Assuming uncontr = %d\n", uncontr));
 
             if (uncontr == 1) {
-                assumes.push(l);//By theory it should be l here and ~l in else{}
+                assumes.push(l);
             } else {
                 assumes.push(~l);
             }

@@ -264,17 +264,29 @@ namespace Tip {
 
     inline void printClause(const TipCirc& tip, const Clause& c)
     {
-        printf("{ ");        
-        for (unsigned i = 0; i < c.size(); i++){
-            if (i > 0) printf(", ");
-            if (sign(c[i])) printf("~");
-            if (tip.flps.isFlop(gate(c[i])))
+        printf("{ ");
+        bool printedLast = false;
+        for (unsigned i = 0; i < c.size(); i++) {
+            if (printedLast) printf(", ");
+            if (tip.flps.isFlop(gate(c[i]))) {
+                if (sign(c[i])) {
+                    printf("~");
+                }
                 printf("f");
-            else if (type(c[i]) == gtype_Inp)
-                printf("i");
-            else
+                printf("%d", tip.main.number(gate(c[i])));
+                printedLast = true;
+            } else if (type(c[i]) == gtype_Inp) {
+                if (sign(c[i])) {
+                    printf("~");
+                    printf("i");
+                    printf("%d", tip.main.number(gate(c[i])));
+                    printedLast = true;
+                } else {
+                    printedLast = false;
+                }
+            } else
                 assert(false);
-            printf("%d", tip.main.number(gate(c[i])));
+            
         }
         if (c.cycle == cycle_Undef)
             printf(" }@inv\n");
