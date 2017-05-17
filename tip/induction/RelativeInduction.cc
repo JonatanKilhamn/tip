@@ -24,7 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "tip/induction/TripProofInstances.h"
 #include "tip/liveness/EmbedFairness.h"
 #include "tip/unroll/Bmc.h"
-#include <stdio.h>
+//#include <stdio.h>
 
 #define GENERALIZE_THEN_PUSH
 //#define VERIFY_SUBSUMPTION
@@ -147,6 +147,9 @@ namespace Tip {
             // Find a maximal generalization of c that still is subsumed by init.
             void             generalize(Clause& c, int uncontr = 2);
 
+            // Find a maximal generalization of c that still leads to violate property p in one step
+            void             generalizeProp(Sig p, Clause& c, int uncontr = 2);            
+            
             // Find a maximal generalization of c that holds in initial states.
             void             generalizeInit(Clause& c);
 
@@ -351,6 +354,42 @@ namespace Tip {
                     cls_generalizations++;
                     
                     if (step.prove(cand, e, uncontr) && init.prove(cand, e, d)){
+                        reset = index;
+                        i     = 0;
+                        //if (tip.verbosity >= 4) printf(".%d", d.size());
+                        assert(subsumes(d, cand));
+                    } else {
+                        //if (tip.verbosity >= 4) printf(".");
+                    }
+                }
+            }
+            //if (tip.verbosity >= 4) printf("\n");
+            
+            assert(subsumes(d, c));
+            c = d;
+            // assert(init.prove(c, c, e));
+            // assert(step.prove(c, e));
+        }
+
+        // TODO: WIP (step.proveProp currently doesn't work
+        void Trip::generalizeProp(Sig p, Clause& c, int uncontr)
+        {
+            vec<Sig> try_remove;
+            Clause   d = c;
+            scheduleGeneralizeOrder(c, try_remove);
+
+            int reset = 0;
+            for (int i = 0; d.size() > 1 && i < try_remove.size(); i++){
+                int index = reset + i;
+                if (index >= try_remove.size())
+                    index -= try_remove.size();
+                Sig elem  = try_remove[index];
+
+                if (find(d, elem)){
+                    Clause cand = d - elem;
+                    cls_generalizations++;
+                    
+                    if (step.proveProp(cand, p, d, uncontr)){
                         reset = index;
                         i     = 0;
                         //if (tip.verbosity >= 4) printf(".%d", d.size());
@@ -1263,8 +1302,9 @@ namespace Tip {
                         prop_res = proveProp(tip.safe_props[p].sig, pred, uncontr);
                         if (prop_res == l_False) {
                             //TODO: generalize these clauses somehow.
-                            //generalize((Clause&)*pred, uncontr); //doesn't work, generalize() uses step.prove
+                            //generalizeProp(tip.safe_props[p].sig, *pred, uncontr); //doesn't work, generalize() uses step.prove
                             blockClause(pred);
+                            DEB(printf("A clause is blocked right after prop.prove"));
                         }
                     } while (prop_res == l_False);
                     prop_res = l_False;

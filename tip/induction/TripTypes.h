@@ -284,8 +284,9 @@ namespace Tip {
                 } else {
                     printedLast = false;
                 }
-            } else
-                assert(false);
+            } else {
+                //assert(false);
+            }
             
         }
         if (c.cycle == cycle_Undef)

@@ -190,6 +190,7 @@ namespace Tip {
         
         lbool prove(Sig p, SharedRef<ScheduledClause>& no, unsigned cycle, int uncontr);
 
+        
         uint64_t props();
         uint64_t solves();
         uint64_t confl();
@@ -243,6 +244,7 @@ namespace Tip {
         // uncontrollable: 0 = false, 1 = true; 2 = undef
         bool prove(const Clause& c, Clause& yes, SharedRef<ScheduledClause>& no, SharedRef<ScheduledClause> next = NULL, int uncontr = 2);
         bool prove(const Clause& c, Clause& yes, int uncontr = 2);
+        bool proveProp(const Clause& c, Sig p, Clause& yes, int uncontr = 2);
 
         uint64_t props();
         uint64_t solves();

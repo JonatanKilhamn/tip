@@ -1185,6 +1185,139 @@ next:
         SharedRef<ScheduledClause> dummy;
         return prove(c, yes, dummy, NULL, uncontrollable);
     }
+    
+    
+    //TODO: this doesn't even work, gets segfaults and I don't know why.
+    // -J.K. 2017-05-17
+    bool StepInstance::proveProp(const Clause& c, Sig p, Clause& yes,
+            int uncontr) {
+        DEB(printf("[StepInstance::proveProp] c = "));
+        DEB(printClause(tip, c));
+
+        DEB(printf("[StepInstance::proveProp] Assuming proved clauses"));
+        
+        assert(c.cycle > 0);
+        double time_before = cpuTime();
+        vec<Lit> assumes;
+        vec<Lit> actives;
+
+        // Assume proved clauses:
+        if (c.cycle != cycle_Undef)
+            for (int i = c.cycle - 1; i < activate.size(); i++)
+                if (activate[i] != lit_Undef) {
+                    assumes.push(activate[i]);
+                    actives.push(activate[i]);
+                }
+
+        vec<Sig> clause;
+        for (unsigned i = 0; i < c.size(); i++)
+            clause.push(c[i]);
+        //sort(clause, SigActLt(flop_act));
+        sort(clause, SigActGt(flop_act));
+
+        // Assume the property (outgoing)
+        Lit l = cl->clausify(uc.unroll(p, 0));
+        assumes.push(~l);
+
+
+        // Assume constraints:
+        assumes.push(act_cnstrs);
+
+        // Assume uncontrollability (outgoing)
+        if (uncontr < 2) {
+            //DEB(printf("[StepInstance::prove] uc at start:\n"));
+            //DEB(uc.dump());
+            Sig x = tip.uncSig;//tip.flps.next(gate(tip.uncSig)) ^ sign(tip.uncSig);
+            Lit l = cl->clausify(uc.unroll(x, 0));
+            //DEB(printf("[StepInstance::prove] uncSig.x=%u and l.x=%u\n",tip.uncSig.x,l.x));            
+            DEB(printf("[StepInstance::proveProp] Assuming uncontr = %d\n", uncontr));
+
+            if (uncontr == 1) {
+                assumes.push(l);
+            } else {
+                assumes.push(~l);
+            }
+        }
+
+        // Try to satisfy clause 'c' (incoming):
+        vec<Lit> cls;
+        for (unsigned i = 0; i < c.size(); i++) {
+            Sig x = uc.unroll(c[i], 0);
+            Lit l = cl->clausify(x);
+            solver->setPolarity(var(l), lbool(!sign(l)));
+            cls.push(l);
+        }
+
+        //if (next == NULL) solver->extend_model = false;
+        bool sat = solver->solve(assumes);
+        
+        // Undo polarity preference:
+        for (int i = 0; i < cls.size(); i++)
+            solver->setPolarity(var(cls[i]), l_Undef);
+
+        if (sat) {
+            // Check if incoming clause was satisfied:
+            bool clause_sat = false;
+            for (int i = 0; i < cls.size() && !clause_sat; i++)
+                if (solver->modelValue(cls[i]) == l_True)
+                    clause_sat = true;
+
+            if (!clause_sat) {
+                // Look for a new model where the clause is guaranteed to be true:
+                Lit trigg = mkLit(solver->newVar());
+                cls.push(~trigg);
+                solver->addClause(cls);
+                assumes.push(trigg);
+                sat = solver->solve(assumes);
+                solver->releaseVar(~trigg);
+                DEB(printf("[StepInstance::prove] needed to add induction hypothesis => sat=%d\n", sat));
+            } else {
+                DEB(printf("[StepInstance::prove] did NOT need to add induction hypothesis.\n"));
+            }
+        }
+        solver->extend_model = true;
+
+        bool result;
+        if (sat) {
+            DEB(printf("sat\n"));
+            // Found a counter-example:
+
+            result = false;
+        } else {
+            DEB(printf("unsat\n"));
+            // Proved the clause:
+            vec<Sig> subset;
+            for (unsigned i = 0; i < c.size(); i++) {
+                Sig x = tip.flps.next(gate(c[i])) ^ sign(c[i]);
+                Lit l = cl->lookup(uc.lookup(x, 0));
+                if (solver->conflict.has(l))
+                    subset.push(c[i]);
+            }
+            // What level was sufficient?
+            unsigned k = cycle_Undef;
+            if (c.cycle != cycle_Undef)
+                for (int i = c.cycle - 1; i < activate.size(); i++)
+                    if (solver->conflict.has(~activate[i])) {
+                        k = i + 1;
+                        break;
+                    }
+
+            assert(solver->okay());
+
+            // TODO: is this ok? When it doesn't hold it means that the clause didn't hold in the
+            // previous cycle, and assuming the induction-hypothesis was enough to derive the
+            // contradiction. This is surprising but may be ok in some situations.
+            // assert(subset.size() > 0);
+
+            yes = Clause(subset, k);
+            result = true;
+        }
+        cpu_time += cpuTime() - time_before;
+
+        DEB(printf("[StepInstance::proveProp] result = %d\n",result));
+        return result;
+    }
+    
 
     StepInstance::StepInstance(const TipCirc& t, const vec<vec<Clause*> >& F_, const vec<Clause*>& F_inv_, const vec<EventCounter>& event_cnts_, GMap<float>& flop_act_,
             int cnf_level_, uint32_t max_min_tries_)
